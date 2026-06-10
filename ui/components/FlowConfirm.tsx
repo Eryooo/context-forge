@@ -28,6 +28,7 @@ function confLabel(conf: number): string {
 
 export function FlowConfirm({ pkg, onUpdate }: Props) {
   const [interactions, setInteractions] = useState<Interaction[]>(pkg.interactionGraph.interactions)
+  const [showAddDialog, setShowAddDialog] = useState(false)
 
   const pageName = (pageId?: string) =>
     pkg.pageList.pages.find(p => p.pageId === pageId)?.pageName || pageId || '?'
@@ -36,6 +37,34 @@ export function FlowConfirm({ pkg, onUpdate }: Props) {
   const high = interactions.filter(i => i.confidence >= 0.85)
   const medium = interactions.filter(i => i.confidence >= 0.6 && i.confidence < 0.85)
   const low = interactions.filter(i => i.confidence < 0.6)
+
+  const unresolvedQuestions = pkg.interactionGraph.unresolvedQuestions || []
+
+  // 0 关系空状态(审计 P0 / 10.2 / A15 / UX验收第2条:给原因+补救入口)
+  if (interactions.length === 0) {
+    return (
+      <div className="flow-confirm-empty">
+        <h3>暂未识别到页面关系</h3>
+        <p className="empty-reason">可能原因:</p>
+        <ul className="empty-reasons">
+          <li>1. 选中的页面中没有明显按钮 / 链接 / 列表项;</li>
+          <li>2. 图层命名不包含"新增 / 编辑 / 查看 / 返回 / 提交"等关键词;</li>
+          <li>3. 页面之间没有 MasterGo 原型连线;</li>
+          <li>4. 当前只完成页面识别,尚未确认页面流程。</li>
+        </ul>
+        <p className="empty-actions-label">你可以:</p>
+        <div className="empty-actions">
+          <button onClick={() => setShowAddDialog(true)}>添加主流程</button>
+          <button onClick={() => setShowAddDialog(true)}>添加页面跳转</button>
+          <button onClick={() => setShowAddDialog(true)}>添加弹窗关系</button>
+          <button onClick={() => setShowAddDialog(true)}>添加状态归属</button>
+        </div>
+        <p className="empty-hint">
+          提示:你也可以先在 MasterGo 中添加原型连线(reactions),或规范图层命名,然后重新生成数据包。
+        </p>
+      </div>
+    )
+  }
 
   // 批量确认高置信度
   const confirmAllHigh = () => {
@@ -73,7 +102,7 @@ export function FlowConfirm({ pkg, onUpdate }: Props) {
       </div>
       <div className="rel-desc">{inter.naturalLanguage}</div>
       <div className="rel-meta">
-        来源: {inter.source}
+        来源: {inter.source.join(' + ')}
         {inter.evidence && ` · ${inter.evidence}`}
       </div>
       <div className="rel-actions">
@@ -166,11 +195,13 @@ export function FlowConfirm({ pkg, onUpdate }: Props) {
         </section>
       )}
 
-      {interactions.length === 0 && (
-        <div className="flow-empty">
-          未推断出任何交互关系。可能原因:页面无原型连线,且交互元素命名不含规则关键词(按钮/链接/提交等)。
-        </div>
-      )}
+      {/* 底部操作栏 */}
+      <section className="flow-actions">
+        <button onClick={() => setShowAddDialog(true)}>手动新增关系</button>
+        <span className="action-hint">
+          你可以补充插件未识别的页面跳转、弹窗、状态关系。
+        </span>
+      </section>
     </div>
   )
 }

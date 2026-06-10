@@ -19,6 +19,14 @@ export function generatePrompt(pkg: AIContextPackage, options?: ExportOptions): 
 
   const sections: string[] = []
 
+  // 审计 11.1:重要边界声明(置于开头,防外部 AI 误解任务)
+  sections.push('# 重要边界')
+  sections.push('')
+  sections.push('本数据包由 **ContextForge** 插件导出。ContextForge 只负责提供 MasterGo / Figma 设计上下文,**不负责生成 HTML / React / Vue**。')
+  sections.push('')
+  sections.push('你的任务是**基于该数据包生成完整可运行的交互 Demo**。')
+  sections.push('')
+
   // § 1. 任务目标
   sections.push('# 任务目标')
   sections.push('')
@@ -83,6 +91,23 @@ export function generatePrompt(pkg: AIContextPackage, options?: ExportOptions): 
     sections.push(`- ${inter.naturalLanguage}`)
   })
   sections.push('')
+
+  // 审计 11.2:待确认问题 / 不确定关系(置于交互关系之后)
+  if (pkg.interactionGraph.unresolvedQuestions.length > 0) {
+    sections.push('# 待确认问题 / 不确定关系')
+    sections.push('')
+    sections.push('以下关系未被用户确认,或推断置信度较低。生成代码时请保守处理,或在代码中以 TODO 标注。')
+    sections.push('')
+    pkg.interactionGraph.unresolvedQuestions.forEach((q, idx) => {
+      sections.push(`## 问题 ${idx + 1}: ${q.question}`)
+      if (q.relatedPage) sections.push(`- **关联页面**: ${pkg.pageList.pages.find(p => p.pageId === q.relatedPage)?.pageName || q.relatedPage}`)
+      if (q.relatedElement) sections.push(`- **关联元素**: ${q.relatedElement}`)
+      if (q.suggestedOptions.length > 0) {
+        sections.push(`- **建议选项**: ${q.suggestedOptions.join(' / ')}`)
+      }
+      sections.push('')
+    })
+  }
 
   // § 6. PRD 上下文
   if (pkg.prdContext && pkg.prdContext.summary) {
@@ -185,6 +210,16 @@ export function generatePrompt(pkg: AIContextPackage, options?: ExportOptions): 
   sections.push('5. **如存在降级,以截图为准**,DSL 为辅;')
   sections.push('6. **补充 CSS 样式和响应式布局**,数据包仅提供结构和语义;')
   sections.push('7. **生成代码后,需人工调试和优化**,数据包不保证开箱即用。')
+  sections.push('')
+
+  // 审计 11.3:资产说明(告诉外部 AI 如何读取真实资产)
+  sections.push('# 资产说明')
+  sections.push('')
+  sections.push('如果使用 **JSON 模式**,完整 DSL / HTML / 截图 base64 位于 `assets.pages[pageId]`。')
+  sections.push('')
+  sections.push('如果使用 **Prompt / Markdown 模式**,请优先参考页面摘要与路径引用。')
+  sections.push('')
+  sections.push('如果需要**完整高保真还原**,请使用 **JSON 或 ZIP 数据包**(ZIP 模式后续版本支持)。')
   sections.push('')
 
   // § 11. 禁止事项(PRD §12.3)
