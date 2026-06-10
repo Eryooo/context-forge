@@ -273,7 +273,7 @@ export function exportMarkdown(pkg: AIContextPackage, options?: ExportOptions): 
   pkg.interactionGraph.interactions.forEach(inter => {
     md.push(`### ${inter.naturalLanguage}`)
     md.push(`- **置信度**: ${(inter.confidence * 100).toFixed(0)}%`)
-    md.push(`- **来源**: ${inter.source}`)
+    md.push(`- **来源**: ${inter.source.join(' + ')}`)
     if (inter.evidence) md.push(`- **证据**: ${inter.evidence}`)
     md.push('')
   })

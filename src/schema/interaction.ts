@@ -34,9 +34,9 @@ export type TriggerElementType =
   | 'tab'
   | 'unknown'
 
-// 单条交互关系
+// 单条交互关系(审计 4.6/4.7/7.3 改造:target 拆分+source 数组+返回目标)
 export interface Interaction {
-  id: string                    // 唯一 ID
+  id: string                    // 唯一 ID(审计 7.2:用 stable-id.ts 哈希生成)
   interactionType: InteractionType
 
   // 来源
@@ -47,8 +47,14 @@ export interface Interaction {
   // 动作
   actionType: ActionType
 
-  // 目标
-  target?: string               // 目标页面 ID(navigate/openModal 等有目标)
+  // 目标(审计 4.6:拆分细化,避免混乱)
+  targetType?: 'page' | 'overlay' | 'state' | 'external' | 'self' | 'unknown'
+  targetPageId?: string         // 目标页面 ID(navigate/showState)
+  targetOverlayId?: string      // 目标弹窗/抽屉 ID(openModal/openDrawer)
+  targetStateId?: string        // 目标状态页 ID(showState)
+  targetExternalUrl?: string    // 外部链接(跳转外站)
+  returnToPageId?: string       // closeModal/goBack/关闭弹窗后返回的页面 ID(审计 7.3)
+  overlayOwnerPageId?: string   // overlay 所属的主页面 ID(审计 7.3)
 
   // 条件与结果
   condition?: string            // 触发条件(e.g. "用户点击新增按钮")
@@ -58,8 +64,8 @@ export interface Interaction {
   // 置信度(由规则/AI/原型推断,0–1)
   confidence: number
 
-  // 推断来源
-  source: 'rule' | 'ai' | 'prototype' | 'user'  // rule=命名规则;prototype=原型连线;user=用户确认
+  // 推断来源(审计 4.5:改为数组,支持多来源叠加,如 rule+prototype / rule+prd)
+  source: Array<'rule' | 'ai' | 'prototype' | 'prd' | 'user' | 'naming' | 'layout'>
   evidence?: string             // 证据(e.g. "reactions.action.destinationId=xxx")
 
   // 用户确认状态

@@ -81,6 +81,36 @@ export function AISettingsPanel({ settings, onSave, onClear }: Props) {
         />
       </div>
 
+      <div className="form-row">
+        <div className="form-group">
+          <label>Temperature</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="2"
+            value={local.temperature ?? 0.2}
+            onChange={(e) => update({ temperature: Number(e.target.value) })}
+          />
+        </div>
+        <div className="form-group">
+          <label>Max Tokens</label>
+          <input
+            type="number"
+            value={local.maxTokens ?? 4096}
+            onChange={(e) => update({ maxTokens: Number(e.target.value) })}
+          />
+        </div>
+        <div className="form-group">
+          <label>Timeout(ms)</label>
+          <input
+            type="number"
+            value={local.timeout ?? 60000}
+            onChange={(e) => update({ timeout: Number(e.target.value) })}
+          />
+        </div>
+      </div>
+
       {/* 增强用途开关 */}
       <div className="form-group">
         <label>增强用途</label>

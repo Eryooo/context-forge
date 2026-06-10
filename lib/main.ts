@@ -142,6 +142,32 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
         break
       }
 
+      case UIMessage.LOAD_PRD_DRAFT: {
+        // 加载 PRD 草稿(按 documentId 隔离)
+        const docId = safeGet(() => mg.documentId) ?? 'default'
+        const key = `context-forge:prd-draft:${docId}`
+        const draft = await mg.clientStorage.getAsync(key)
+        sendMsgToUI({
+          type: PluginMessage.PRD_DRAFT_LOADED,
+          data: draft || null,
+        })
+        break
+      }
+
+      case UIMessage.SAVE_PRD_DRAFT: {
+        // 保存 PRD 草稿。注意:UI 侧已剥离 rawPRD,这里再兜底剥离一次(B4)
+        const docId = safeGet(() => mg.documentId) ?? 'default'
+        const key = `context-forge:prd-draft:${docId}`
+        const draft = { ...(msg.data || {}) }
+        delete draft.rawPRD
+        await mg.clientStorage.setAsync(key, draft)
+        sendMsgToUI({
+          type: PluginMessage.PRD_DRAFT_SAVED,
+          data: { success: true },
+        })
+        break
+      }
+
       case UIMessage.RUN_PROBES: {
         // 调试:运行 API 探测(保留 probe 功能,供调试用)
         // 这里简化版,只上报环境信息

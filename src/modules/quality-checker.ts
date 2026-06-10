@@ -135,8 +135,9 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
 
   // 8. 目标页面不存在
   const brokenLinks = pkg.interactionGraph.interactions.filter(i => {
-    if (!i.target) return false
-    return !pkg.pageList.pages.some(p => p.pageId === i.target)
+    const targetId = i.targetPageId || i.targetOverlayId || i.targetStateId
+    if (!targetId) return false
+    return !pkg.pageList.pages.some(p => p.pageId === targetId)
   })
   if (brokenLinks.length > 0) {
     checks.hasTargetPageNotFound = true
@@ -145,7 +146,7 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
       severity: 'blocking',
       category: '关系完整性',
       title: `${brokenLinks.length} 条关系的目标页面不存在`,
-      detail: brokenLinks.map(i => `${i.fromPage} → ${i.target}`).join('; '),
+      detail: brokenLinks.map(i => `${i.fromPage} → ${i.targetPageId || i.targetOverlayId || i.targetStateId}`).join('; '),
       suggestion: '这些关系的目标 ID 无效,请删除或修正。',
     })
   }

@@ -79,13 +79,55 @@ export async function callAI(
   }
 }
 
-// 测试连接
+// 测试连接(审计 5.4:给出 6 类明确失败原因)
+// 优先用 /models GET(更轻、更能区分 Key/URL/CORS 问题)
 export async function testAIConnection(settings: AISettings): Promise<AICallResult> {
-  return callAI(
-    settings,
-    '你是一个测试助手。',
-    '请回复"连接成功"四个字。'
-  )
+  if (!settings.apiKey) {
+    return { success: false, error: '未填写 API Key。' }
+  }
+  if (!settings.baseUrl) {
+    return { success: false, error: '未填写 Base URL。' }
+  }
+
+  const url = `${settings.baseUrl.replace(/\/$/, '')}/models`
+  const controller = new AbortController()
+  const timeout = settings.timeout || 30000
+  const timer = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${settings.apiKey}` },
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+
+    if (res.status === 401 || res.status === 403) {
+      return { success: false, error: '① API Key 错误或无权限(HTTP ' + res.status + ')。' }
+    }
+    if (res.status === 404) {
+      return { success: false, error: '② Base URL 路径不正确(/models 返回 404),请检查是否为 OpenAI-compatible 端点。' }
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return { success: false, error: `服务端返回 HTTP ${res.status}: ${text.slice(0, 120)}` }
+    }
+    // 成功:尝试确认模型是否存在(非强制)
+    return { success: true, content: '连接成功(/models 可访问)。' }
+  } catch (e: any) {
+    clearTimeout(timer)
+    if (e.name === 'AbortError') {
+      return { success: false, error: `④ 当前网络无法访问(请求超时 ${timeout}ms)。` }
+    }
+    if (e.message?.includes('Failed to fetch') || e.message?.includes('NetworkError')) {
+      return {
+        success: false,
+        error:
+          '③/⑤ 服务端未开启 CORS 或浏览器跨域被拦截。OpenAI 官方端点通常不允许浏览器直连,请改用支持 CORS 的兼容代理/企业网关,或导出数据包后交外部 AI。',
+      }
+    }
+    return { success: false, error: '⑥ 未知错误: ' + String(e?.message || e) }
+  }
 }
 
 // ========== AI 增强能力(可选,失败回退本地规则) ==========

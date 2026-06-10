@@ -5,6 +5,7 @@
 
 import type { Interaction, InteractionType, ActionType, TriggerElementType, UnresolvedQuestion } from '../schema/interaction'
 import type { PageNode } from '../schema/page-graph'
+import { createStableInteractionId, createStableQuestionId } from './utils/stable-id'
 
 // ========== 命名规则(PRD §9.5 典型规则) ==========
 
@@ -158,10 +159,12 @@ function inferFromPrototype(
   // 判断 interactionType
   let interactionType: InteractionType = 'navigation'
   let actionType: ActionType = 'navigate'
+  let targetType: 'page' | 'overlay' | 'state' | 'unknown' = 'page'
 
   if (proto.navigation === 'OVERLAY') {
     interactionType = 'overlay'
     actionType = targetPage.pageType === 'drawer' ? 'openDrawer' : 'openModal'
+    targetType = 'overlay'
   } else if (proto.actionType === 'BACK') {
     interactionType = 'navigation'
     actionType = 'goBack'
@@ -173,17 +176,19 @@ function inferFromPrototype(
   const naturalLang = `当用户在【${getPageName(candidate.fromPageId, allPages)}】点击【${candidate.triggerElement}】时,执行【${actionType}】,目标为【${targetPage.pageName}】。`
 
   return {
-    id: `int_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: createStableInteractionId(candidate.fromPageId, candidate.triggerNodeId, actionType, targetPage.pageId),
     interactionType,
     fromPage: candidate.fromPageId,
     triggerElement: candidate.triggerElement,
     triggerElementType: candidate.triggerElementType,
     actionType,
-    target: targetPage.pageId,
+    targetType,
+    targetPageId: targetType === 'page' ? targetPage.pageId : undefined,
+    targetOverlayId: targetType === 'overlay' ? targetPage.pageId : undefined,
     condition: `用户点击【${candidate.triggerElement}】`,
     expectedState: `跳转到【${targetPage.pageName}】`,
     confidence: 0.9,
-    source: 'prototype',
+    source: ['prototype'], // 审计 4.5:source 改数组
     evidence: `reactions.action.destinationId=${proto.destinationId}`,
     confirmedByUser: false,
     userModified: false,
@@ -215,9 +220,11 @@ function inferFromNaming(
   // 推断目标页面
   let targetPage: PageNode | undefined
   let interactionType: InteractionType = 'navigation'
+  let targetType: 'page' | 'overlay' | 'unknown' = 'page'
 
   if (actionType === 'openModal') {
     interactionType = 'overlay'
+    targetType = 'overlay'
     // 查找名称相关的 modal/drawer
     const modalKeyword = extractKeyword(triggerName)
     targetPage = allPages.find(p =>
@@ -233,12 +240,14 @@ function inferFromNaming(
     )
   } else if (actionType === 'closeModal' || actionType === 'goBack') {
     interactionType = 'overlay'
-    // 关闭/返回一般无明确目标,不填 target
+    targetType = 'unknown'
+    // 关闭/返回一般无明确目标,不填 target(审计 7.3 要求进待确认队列)
   }
 
   // 如果推断不出目标,降低置信度并进入待确认队列
   if (!targetPage && (actionType === 'openModal' || actionType === 'navigate')) {
     confidence = 0.5
+    targetType = 'unknown'
   }
 
   const naturalLang = targetPage
@@ -246,17 +255,19 @@ function inferFromNaming(
     : `当用户在【${getPageName(candidate.fromPageId, allPages)}】点击【${candidate.triggerElement}】时,执行【${actionType}】,目标未确定。`
 
   return {
-    id: `int_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: createStableInteractionId(candidate.fromPageId, candidate.triggerNodeId, actionType, targetPage?.pageId),
     interactionType,
     fromPage: candidate.fromPageId,
     triggerElement: candidate.triggerElement,
     triggerElementType: candidate.triggerElementType,
     actionType,
-    target: targetPage?.pageId,
+    targetType,
+    targetPageId: targetType === 'page' && targetPage ? targetPage.pageId : undefined,
+    targetOverlayId: targetType === 'overlay' && targetPage ? targetPage.pageId : undefined,
     condition: `用户点击【${candidate.triggerElement}】`,
     expectedState: targetPage ? `跳转到【${targetPage.pageName}】` : '目标页面待确认',
     confidence,
-    source: 'rule',
+    source: ['rule', 'naming'], // 审计 4.5:source 数组,naming 来源
     evidence: `命名包含关键词:${actionType}`,
     confirmedByUser: false,
     userModified: false,
@@ -288,10 +299,15 @@ export function generateUnresolvedQuestions(
   const questions: UnresolvedQuestion[] = []
 
   interactions.forEach(inter => {
-    if (inter.confidence < 0.6 || !inter.target) {
+    const hasTarget = !!(inter.targetPageId || inter.targetOverlayId || inter.targetStateId)
+    if (inter.confidence < 0.6 || !hasTarget) {
       const fromPageName = getPageName(inter.fromPage, allPages)
       const question: UnresolvedQuestion = {
-        id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+        id: createStableQuestionId(
+          `在【${fromPageName}】点击【${inter.triggerElement}】后,应该跳转到哪个页面?`,
+          inter.fromPage,
+          inter.triggerElement
+        ),
         question: `在【${fromPageName}】点击【${inter.triggerElement}】后,应该跳转到哪个页面?`,
         relatedPage: inter.fromPage,
         relatedElement: inter.triggerElement,
@@ -319,15 +335,16 @@ export function inferStateRelations(
   statePages.forEach(statePage => {
     const naturalLang = `当【${basePage.pageName}】处于【${statePage.pageType}】状态时,展示【${statePage.pageName}】。`
     relations.push({
-      id: `int_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: createStableInteractionId(basePage.pageId, undefined, 'showState', statePage.pageId),
       interactionType: 'state',
       fromPage: basePage.pageId,
       actionType: 'showState',
-      target: statePage.pageId,
+      targetType: 'state',
+      targetStateId: statePage.pageId,
       condition: `${basePage.pageName} 处于特定状态`,
       expectedState: `展示 ${statePage.pageName}`,
       confidence: 0.8,
-      source: 'rule',
+      source: ['rule', 'layout'], // 审计 4.5:source 数组,layout 来源(位置推断)
       evidence: `命名规则识别为状态页`,
       confirmedByUser: false,
       userModified: false,

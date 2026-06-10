@@ -278,8 +278,8 @@ export async function generateAIContextPackage(
     const relatedOverlays = interactions.filter(i =>
       i.fromPage === main.pageId &&
       (i.actionType === 'openModal' || i.actionType === 'openDrawer') &&
-      i.target
-    ).map(i => i.target!)
+      i.targetOverlayId
+    ).map(i => i.targetOverlayId!)
 
     relatedOverlays.forEach(oid => {
       group.children.push({ pageId: oid, relationType: 'overlay' })
@@ -289,8 +289,8 @@ export async function generateAIContextPackage(
     const relatedStates = interactions.filter(i =>
       i.fromPage === main.pageId &&
       i.interactionType === 'state' &&
-      i.target
-    ).map(i => i.target!)
+      i.targetStateId
+    ).map(i => i.targetStateId!)
 
     relatedStates.forEach(sid => {
       group.children.push({ pageId: sid, relationType: 'state' })

@@ -42,8 +42,13 @@ export enum UIMessage {
   SAVE_SETTINGS = 'SAVE_SETTINGS',         // 保存 AI 设置
   CLEAR_SETTINGS = 'CLEAR_SETTINGS',       // 清除 AI Key
 
+  // PRD 草稿(clientStorage)
+  LOAD_PRD_DRAFT = 'LOAD_PRD_DRAFT',       // 加载 PRD 草稿
+  SAVE_PRD_DRAFT = 'SAVE_PRD_DRAFT',       // 保存 PRD 草稿(不含 rawPRD)
+
   // 调试消息(保留)
   RUN_PROBES = 'RUN_PROBES',
+  RUN_CODEGEN_PROBE = 'RUN_CODEGEN_PROBE', // DevMode codegen 实测
   PING = 'PING',
 }
 
@@ -60,6 +65,9 @@ export enum PluginMessage {
   SETTINGS_LOADED = 'SETTINGS_LOADED',     // 设置已加载
   SETTINGS_SAVED = 'SETTINGS_SAVED',       // 设置已保存
   SETTINGS_CLEARED = 'SETTINGS_CLEARED',   // 设置已清除
+  PRD_DRAFT_LOADED = 'PRD_DRAFT_LOADED',   // PRD 草稿已加载
+  PRD_DRAFT_SAVED = 'PRD_DRAFT_SAVED',     // PRD 草稿已保存
+  CODEGEN_PROBE_RESULT = 'CODEGEN_PROBE_RESULT', // DevMode codegen 实测结果
   ERROR = 'ERROR',                         // 错误
 
   // 调试消息(保留)
