@@ -188,13 +188,14 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
         result.tests.push({ name: 'mg.codegen 存在性', pass: typeof (mg as any).codegen !== 'undefined' })
         if ((mg as any).codegen) {
           try {
-            const sel = mg.currentPage?.selection?.[0]
-            if (!sel) {
+            const sel = mg.currentPage.selection
+            if (!sel || sel.length === 0) {
               result.tests.push({ name: 'getDSL 可用性', pass: false, error: '未选中节点' })
             } else {
-              const dsl = await (mg as any).codegen.getDSL({ node: sel })
+              const node = sel[0]
+              const dsl = await (mg as any).codegen.getDSL({ node })
               result.tests.push({ name: 'getDSL 可用性', pass: !!dsl, result: dsl ? 'OK' : 'null' })
-              const code = await (mg as any).codegen.getCode({ node: sel })
+              const code = await (mg as any).codegen.getCode({ node })
               result.tests.push({ name: 'getCode 可用性', pass: !!code, result: code ? code.slice(0, 100) : 'null' })
             }
           } catch (e: any) {
