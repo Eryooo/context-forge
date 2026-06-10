@@ -10,29 +10,45 @@ import {
   type ErrorPayload,
 } from '@messages/sender'
 import type { AIContextPackage } from '@schema/package-schema'
+import type { ExportMode } from '@schema/package-schema'
+import type { PRDContext } from '@schema/package-schema'
+import type { AISettings } from '@schema/ai-settings'
+import type { Interaction } from '@schema/interaction'
+import type { PageNode } from '@schema/page-graph'
 import { getDiagSnapshot, BUILD_ID, pushMainLog } from './diag'
 import { FlowConfirm } from './components/FlowConfirm'
-import type { Interaction } from '@schema/interaction'
+import { PRDPanel } from './components/PRDPanel'
+import { AISettingsPanel } from './components/AISettingsPanel'
+import { PageReviewPanel } from './components/PageReviewPanel'
+import { recalculatePackageAfterUserEdit } from '@modules/package/recalculate'
 
-type ExportMode = 'selected_frames' | 'current_page' | 'whole_document'
+// 7-Step 流程(审计 P0(UX) / 10.2)
+type Step = 'config' | 'identifying' | 'page-review' | 'flow-confirm' | 'prd' | 'ai-settings' | 'quality' | 'export'
 
 function App() {
   // ========== 状态 ==========
   const [env, setEnv] = useState<EnvInfo | null>(null)
+  const [currentStep, setCurrentStep] = useState<Step>('config')
+
+  // 配置
   const [exportMode, setExportMode] = useState<ExportMode>('selected_frames')
   const [projectName, setProjectName] = useState('任务管理系统 MVP')
   const [projectDesc, setProjectDesc] = useState('用于生成可交互 HTML Demo 的设计上下文数据包')
 
+  // PRD 补充
+  const [prdContext, setPrdContext] = useState<PRDContext | null>(null)
+  const [includeRawPRD, setIncludeRawPRD] = useState(false)
+
+  // AI 设置
+  const [aiSettings, setAiSettings] = useState<AISettings | null>(null)
+
+  // 生成结果
   const [progress, setProgress] = useState<ProgressPayload | null>(null)
   const [pkg, setPkg] = useState<AIContextPackage | null>(null)
   const [exportResult, setExportResult] = useState<{ format: string; content: string } | null>(null)
   const [error, setError] = useState<ErrorPayload | null>(null)
 
   const [toast, setToast] = useState('')
-  const [dumpText, setDumpText] = useState('')
-
-  // 调试面板
-  const [debugOpen, setDebugOpen] = useState(false)
 
   const showToast = (s: string) => {
     setToast(s)
@@ -49,7 +65,6 @@ function App() {
         case PluginMessage.ENV_INFO: {
           const e = msg.data as EnvInfo
           setEnv(e)
-          // 设置主题
           if (e.themeColor === 'dark' || e.themeColor === 'light') {
             document.documentElement.setAttribute('data-theme', e.themeColor)
           }
@@ -61,6 +76,7 @@ function App() {
         case PluginMessage.PACKAGE_GENERATED:
           setPkg(msg.data as AIContextPackage)
           setProgress(null)
+          setCurrentStep('page-review') // 生成后自动进入页面确认
           showToast('数据包生成完成 ✓')
           break
         case PluginMessage.EXPORT_DONE:
@@ -73,8 +89,23 @@ function App() {
           setProgress(null)
           showToast('操作失败,请查看错误详情')
           break
+        case PluginMessage.PRD_DRAFT_LOADED:
+          if (msg.data) setPrdContext(msg.data)
+          break
+        case PluginMessage.PRD_DRAFT_SAVED:
+          showToast('PRD 草稿已保存 ✓')
+          break
+        case PluginMessage.SETTINGS_LOADED:
+          if (msg.data) setAiSettings(msg.data)
+          break
+        case PluginMessage.SETTINGS_SAVED:
+          showToast('AI 设置已保存 ✓')
+          break
+        case PluginMessage.SETTINGS_CLEARED:
+          setAiSettings(null)
+          showToast('AI Key 已清除 ✓')
+          break
         case 'LOG':
-          // 主线程日志转发,写入诊断
           if (msg.data) {
             pushMainLog(msg.data.level || 'log', msg.data.args || [])
           }
@@ -87,24 +118,32 @@ function App() {
     return () => window.removeEventListener('message', handler)
   }, [])
 
+  // 加载 PRD 草稿和 AI 设置
+  useEffect(() => {
+    sendMsgToPlugin({ type: UIMessage.LOAD_PRD_DRAFT })
+    sendMsgToPlugin({ type: UIMessage.LOAD_SETTINGS })
+  }, [])
+
   // ========== 业务操作 ==========
   const generate = useCallback(() => {
     setError(null)
     setPkg(null)
     setExportResult(null)
+    setCurrentStep('identifying')
     sendMsgToPlugin({
       type: UIMessage.GENERATE_PACKAGE,
       data: {
         projectName,
         projectDescription: projectDesc,
         exportMode,
-        aiSettings: null, // MVP 暂不启用 AI
-        prdContext: null,
+        aiSettings,
+        prdContext,
       },
     })
-  }, [projectName, projectDesc, exportMode])
+  }, [projectName, projectDesc, exportMode, aiSettings, prdContext])
 
   const exportAs = useCallback((format: 'prompt' | 'json' | 'markdown') => {
+    if (!pkg) return
     setError(null)
     setExportResult(null)
     sendMsgToPlugin({
@@ -114,190 +153,259 @@ function App() {
         projectDescription: projectDesc,
         exportMode,
         format,
-        aiSettings: null,
-        prdContext: null,
+        aiSettings,
+        prdContext,
+        includeRawPRD,
       },
     })
-  }, [projectName, projectDesc, exportMode])
+  }, [projectName, projectDesc, exportMode, aiSettings, prdContext, pkg, includeRawPRD])
 
-  const copyToClipboard = useCallback((text: string, label: string) => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(
-        () => showToast(`${label}已复制到剪贴板 ✓`),
-        () => {
-          setDumpText(text)
-          showToast('请在下方文本框手动复制')
-        }
-      )
-    } else {
-      setDumpText(text)
-      showToast('请在下方文本框手动复制')
-    }
+  const savePRDDraft = useCallback((draft: PRDContext) => {
+    sendMsgToPlugin({ type: UIMessage.SAVE_PRD_DRAFT, data: draft })
   }, [])
 
-  const copyDiag = useCallback(() => {
-    const diag = getDiagSnapshot()
-    const md = `# 调试快照 (build=${BUILD_ID})\n\n\`\`\`json\n${JSON.stringify(diag, null, 2)}\n\`\`\`\n`
-    copyToClipboard(md, '调试快照')
-  }, [copyToClipboard])
+  const saveAISettings = useCallback((settings: AISettings) => {
+    setAiSettings(settings)
+    sendMsgToPlugin({ type: UIMessage.SAVE_SETTINGS, data: settings })
+  }, [])
+
+  const clearAISettings = useCallback(() => {
+    sendMsgToPlugin({ type: UIMessage.CLEAR_SETTINGS })
+  }, [])
+
+  // 用户编辑页面后重算
+  const handlePageEdit = useCallback((pages: PageNode[]) => {
+    if (!pkg) return
+    const updated = { ...pkg, pageList: { pages } }
+    const recalculated = recalculatePackageAfterUserEdit(updated, pkg.interactionGraph.interactions)
+    setPkg(recalculated)
+  }, [pkg])
+
+  // 用户编辑关系后重算
+  const handleInteractionEdit = useCallback((interactions: Interaction[]) => {
+    if (!pkg) return
+    const recalculated = recalculatePackageAfterUserEdit(pkg, interactions)
+    setPkg(recalculated)
+  }, [pkg])
+
+  // ========== 7-Step 导航 ==========
+  const steps: Array<{ key: Step; label: string }> = [
+    { key: 'config', label: '配置项目' },
+    { key: 'identifying', label: '识别中...' },
+    { key: 'page-review', label: '页面确认' },
+    { key: 'flow-confirm', label: '流程确认' },
+    { key: 'prd', label: 'PRD 补充' },
+    { key: 'ai-settings', label: 'AI 设置' },
+    { key: 'quality', label: '质量预览' },
+    { key: 'export', label: '导出' },
+  ]
+
+  const stepIndex = steps.findIndex((s) => s.key === currentStep)
+
+  const nextStep = () => {
+    const next = steps[stepIndex + 1]
+    if (next) setCurrentStep(next.key)
+  }
+
+  const prevStep = () => {
+    const prev = steps[stepIndex - 1]
+    if (prev) setCurrentStep(prev.key)
+  }
 
   // ========== 渲染 ==========
   return (
-    <div className="app">
-      <header className="app-head">
-        <h1>AI Context Packager</h1>
-        <p className="sub">Step 3-7 完成,build={BUILD_ID}</p>
-      </header>
+    <div className="app-container">
+      {/* 顶部步骤条 */}
+      <div className="step-nav">
+        {steps.filter(s => s.key !== 'identifying').map((s, i) => (
+          <div
+            key={s.key}
+            className={`step-item ${currentStep === s.key ? 'active' : ''} ${stepIndex > i ? 'done' : ''}`}
+            onClick={() => {
+              if (s.key !== 'identifying' && (stepIndex > i || s.key === 'config')) setCurrentStep(s.key)
+            }}
+          >
+            {s.label}
+          </div>
+        ))}
+      </div>
 
-      {/* 环境信息 */}
-      <section className="env">
-        <div className="env-row">
-          <span>模式</span>
-          <strong>{env?.command || (env?.hasCodegen ? 'devMode?' : 'canvas?')}</strong>
-        </div>
-        <div className="env-row">
-          <span>codegen</span>
-          <strong>{env ? (env.hasCodegen ? '✅' : '⚪') : '—'}</strong>
-        </div>
-      </section>
+      {/* Toast */}
+      {toast && <div className="toast">{toast}</div>}
 
-      {/* 主操作区 */}
-      <section className="main">
-        <div className="form-group">
-          <label>项目名称</label>
-          <input
-            type="text"
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            placeholder="任务管理系统 MVP"
-          />
+      {/* Error */}
+      {error && (
+        <div className="error-box">
+          <strong>错误:</strong> {error.message}
+          <button className="close-btn" onClick={() => setError(null)}>×</button>
         </div>
+      )}
 
-        <div className="form-group">
-          <label>项目描述</label>
-          <input
-            type="text"
-            value={projectDesc}
-            onChange={(e) => setProjectDesc(e.target.value)}
-            placeholder="用于生成可交互 HTML Demo"
-          />
-        </div>
-
-        <div className="form-group">
-          <label>导出范围</label>
-          <select value={exportMode} onChange={(e) => setExportMode(e.target.value as ExportMode)}>
-            <option value="selected_frames">选中的 Frame</option>
-            <option value="current_page">当前页面</option>
-            <option value="whole_document">整个文档(暂不支持)</option>
-          </select>
-        </div>
-
-        <div className="actions">
-          <button className="primary" onClick={generate} disabled={!!progress}>
-            {progress ? `${progress.phase}...` : '一键生成数据包'}
-          </button>
-        </div>
-
-        {progress && (
-          <div className="progress">
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${(progress.current / progress.total) * 100}%` }}
-              />
+      {/* 主内容区 */}
+      <div className="main-content">
+        {currentStep === 'config' && (
+          <div className="step-config">
+            <h2>项目配置</h2>
+            <div className="form-group">
+              <label>项目名称</label>
+              <input value={projectName} onChange={(e) => setProjectName(e.target.value)} />
             </div>
-            <div className="progress-msg">{progress.message}</div>
+            <div className="form-group">
+              <label>项目描述</label>
+              <textarea value={projectDesc} onChange={(e) => setProjectDesc(e.target.value)} rows={2} />
+            </div>
+            <div className="form-group">
+              <label>导出范围</label>
+              <select value={exportMode} onChange={(e) => setExportMode(e.target.value as ExportMode)}>
+                <option value="selected_frames">选中的 Frame</option>
+                <option value="selected_nodes">选中的节点(任意)</option>
+                <option value="current_page_top_frames">当前页面顶层 Frame</option>
+                <option value="container_children">容器内顶层页面</option>
+                <option value="manual_selected_pages">手动勾选页面</option>
+                <option value="flow_group">按流程分组</option>
+              </select>
+            </div>
+            <div className="actions">
+              <button className="primary" onClick={generate}>开始识别</button>
+            </div>
           </div>
         )}
 
-        {pkg && (
-          <div className="result">
-            <h3>✅ 数据包已生成</h3>
-            <p>
-              识别出 <strong>{pkg.pageList.pages.length}</strong> 个页面,
-              <strong>{pkg.interactionGraph.totalInteractions}</strong> 条交互关系。
-              质量评分: <strong>{pkg.qualityReport.score}/100</strong>
-            </p>
+        {currentStep === 'identifying' && (
+          <div className="step-progress">
+            <h2>正在识别...</h2>
+            {progress && (
+              <div>
+                <div className="progress-text">
+                  {progress.phase} ({progress.current}/{progress.total}): {progress.message}
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${(progress.current / progress.total) * 100}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {currentStep === 'page-review' && pkg && (
+          <div className="step-page-review">
+            <h2>页面识别结果</h2>
+            <PageReviewPanel pages={pkg.pageList.pages} onChange={handlePageEdit} />
             <div className="actions">
-              <button onClick={() => exportAs('prompt')}>导出 Prompt</button>
+              <button onClick={prevStep}>返回配置</button>
+              <button className="primary" onClick={nextStep}>下一步:确认流程</button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'flow-confirm' && pkg && (
+          <div className="step-flow-confirm">
+            <h2>页面流程确认</h2>
+            <FlowConfirm pkg={pkg} onUpdate={handleInteractionEdit} />
+            <div className="actions">
+              <button onClick={prevStep}>返回页面确认</button>
+              <button className="primary" onClick={nextStep}>下一步:补充 PRD</button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'prd' && (
+          <div className="step-prd">
+            <h2>PRD 业务规则补充(可选)</h2>
+            <PRDPanel
+              value={prdContext}
+              onChange={setPrdContext}
+              onSaveDraft={savePRDDraft}
+              includeRawPRD={includeRawPRD}
+              onToggleIncludeRaw={setIncludeRawPRD}
+            />
+            <div className="actions">
+              <button onClick={prevStep}>返回流程确认</button>
+              <button className="primary" onClick={nextStep}>下一步:AI 设置</button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'ai-settings' && (
+          <div className="step-ai-settings">
+            <h2>AI 增强设置(可选)</h2>
+            <AISettingsPanel
+              settings={aiSettings || { enabled: false, provider: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4', temperature: 0.2, maxTokens: 4096, timeout: 60000, usages: { pageSemantics: false, relationInference: false, prdSummary: false, promptCompression: false, qualityCheck: false } }}
+              onSave={saveAISettings}
+              onClear={clearAISettings}
+            />
+            <div className="actions">
+              <button onClick={prevStep}>返回 PRD 补充</button>
+              <button className="primary" onClick={nextStep}>下一步:质量预览</button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'quality' && pkg && (
+          <div className="step-quality">
+            <h2>质量报告</h2>
+            <div className="quality-score">
+              <div className="score-num">{pkg.qualityReport.score}</div>
+              <div className="score-label">/100</div>
+            </div>
+            {pkg.qualityReport.blockingIssues.length > 0 && (
+              <div className="quality-section">
+                <h3>阻断性问题 ({pkg.qualityReport.blockingIssues.length})</h3>
+                {pkg.qualityReport.blockingIssues.map((issue, i) => (
+                  <div key={i} className="issue-card blocking">
+                    <strong>{issue.title}</strong>
+                    <p>{issue.detail}</p>
+                    <p className="suggestion">建议:{issue.suggestion}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {pkg.qualityReport.warnings.length > 0 && (
+              <div className="quality-section">
+                <h3>警告 ({pkg.qualityReport.warnings.length})</h3>
+                {pkg.qualityReport.warnings.slice(0, 5).map((issue, i) => (
+                  <div key={i} className="issue-card warning">
+                    <strong>{issue.title}</strong>
+                    <p>{issue.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="actions">
+              <button onClick={prevStep}>返回 AI 设置</button>
+              <button className="primary" onClick={nextStep}>下一步:导出</button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'export' && pkg && (
+          <div className="step-export">
+            <h2>导出数据包</h2>
+            <div className="export-options">
               <button onClick={() => exportAs('json')}>导出 JSON</button>
+              <button onClick={() => exportAs('prompt')}>导出 Prompt</button>
               <button onClick={() => exportAs('markdown')}>导出 Markdown</button>
             </div>
+            {exportResult && (
+              <div className="export-result">
+                <h3>导出完成({exportResult.format})</h3>
+                <textarea value={exportResult.content} readOnly rows={10} />
+                <button onClick={() => navigator.clipboard.writeText(exportResult.content)}>复制到剪贴板</button>
+              </div>
+            )}
+            <div className="actions">
+              <button onClick={prevStep}>返回质量预览</button>
+              <button className="primary" onClick={() => setCurrentStep('config')}>重新开始</button>
+            </div>
           </div>
         )}
+      </div>
 
-        {/* 页面流程确认(PRD §10.4 核心页面) */}
-        {pkg && (
-          <FlowConfirm
-            pkg={pkg}
-            onUpdate={(updated: Interaction[]) => {
-              // 更新本地包的交互关系(用户确认/删除后)
-              setPkg({
-                ...pkg,
-                interactionGraph: {
-                  ...pkg.interactionGraph,
-                  interactions: updated,
-                  totalInteractions: updated.length,
-                  userConfirmedCount: updated.filter((i) => i.confirmedByUser).length,
-                },
-              })
-            }}
-          />
-        )}
-
-        {exportResult && (
-          <div className="export-result">
-            <h3>📋 {exportResult.format.toUpperCase()} 已生成</h3>
-            <button onClick={() => copyToClipboard(exportResult.content, exportResult.format)}>
-              复制到剪贴板
-            </button>
-            <details>
-              <summary>预览({exportResult.content.length} 字符)</summary>
-              <pre>{exportResult.content.slice(0, 500)}...</pre>
-            </details>
-          </div>
-        )}
-
-        {error && (
-          <div className="error">
-            <h3>❌ 错误</h3>
-            <p>{error.message}</p>
-            {error.stack && <pre>{error.stack}</pre>}
-          </div>
-        )}
-
-        {dumpText && (
-          <div className="dump">
-            <p className="dump-hint">↓ 点进文本框 → 全选(Cmd+A)→ 复制(Cmd+C)</p>
-            <textarea
-              readOnly
-              value={dumpText}
-              onFocus={(e) => e.currentTarget.select()}
-            />
-          </div>
-        )}
-      </section>
-
-      {/* 常驻调试面板 */}
-      <section className="debug">
-        <div className="debug-toggle" onClick={() => setDebugOpen(!debugOpen)}>
-          🔧 调试面板 {debugOpen ? '▼' : '▶'}
-        </div>
-        {debugOpen && (
-          <div className="debug-content">
-            <p>开发期常驻调试面板,用于快速复制诊断快照给 Claude。发版时隐藏。</p>
-            <button className="ghost" onClick={copyDiag}>
-              复制调试快照
-            </button>
-          </div>
-        )}
-      </section>
-
-      <footer className="foot">
-        MasterGo AI Context Packager · Step 3-7 业务逻辑完成
-      </footer>
-
-      {toast && <div className="toast">{toast}</div>}
+      {/* 底部信息 */}
+      <div className="footer">
+        <span>ContextForge {BUILD_ID}</span>
+        {env && <span>MG API {env.apiVersion}</span>}
+      </div>
     </div>
   )
 }
