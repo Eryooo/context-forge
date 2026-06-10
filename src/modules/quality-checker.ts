@@ -91,31 +91,41 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
     })
   }
 
-  // 5. HTML 缺失(不阻断,仅提示)
+  // 5. HTML 缺失(审计 14.2:分级)
   const missingHTML = pkg.pageList.pages.filter(p => p.htmlStatus === 'unavailable' || p.htmlStatus === 'failed')
   if (missingHTML.length > 0) {
     checks.hasMissingHTML = true
+    // HTML缺失但DSL+screenshot在→info;screenshot也缺→warning
+    const alsoMissingScreenshot = missingHTML.filter(p => p.screenshotStatus !== 'success')
     issues.push({
       id: 'missing_html',
-      severity: 'info',
+      severity: alsoMissingScreenshot.length > 0 ? 'warning' : 'info',
       category: '数据采集',
       title: `${missingHTML.length} 个页面 HTML 缺失`,
-      detail: 'HTML / D2C 不可用,外部 AI 将基于 DSL + 截图生成代码。',
-      suggestion: '如需 HTML 参考,建议在 DevMode 下重新导出。',
+      detail: alsoMissingScreenshot.length > 0
+        ? `其中 ${alsoMissingScreenshot.length} 个页面截图也缺失,外部 AI 仅能参考 DSL。`
+        : 'HTML / D2C 不可用,外部 AI 将基于 DSL + 截图生成代码。',
+      suggestion: alsoMissingScreenshot.length > 0
+        ? '建议重新导出截图缺失的页面,或在 DevMode 下获取 HTML。'
+        : '如需 HTML 参考,建议在 DevMode 下重新导出。',
     })
   }
 
-  // 6. 截图缺失
+  // 6. 截图缺失(审计 14.1:条件 blocking)
   const missingScreenshot = pkg.pageList.pages.filter(p => p.screenshotStatus === 'failed' || p.screenshotStatus === 'unavailable')
   if (missingScreenshot.length > 0) {
     checks.hasMissingScreenshot = true
+    // 条件 blocking:如果 DSL 或 HTML 存在,降为 warning;如果三者全缺,blocking
+    const hasOtherData = missingScreenshot.every(p => p.dslStatus === 'success' || p.htmlStatus === 'success')
     issues.push({
       id: 'missing_screenshot',
-      severity: 'blocking',
+      severity: hasOtherData ? 'warning' : 'blocking',
       category: '数据采集',
       title: `${missingScreenshot.length} 个页面截图缺失`,
       detail: missingScreenshot.map(p => p.pageName).join('; '),
-      suggestion: '截图是外部 AI 理解视觉效果的关键,建议重新导出这些页面。',
+      suggestion: hasOtherData
+        ? '截图缺失,但 DSL/HTML 存在。外部 AI 仍可参考结构,但视觉还原度会下降。'
+        : '截图/DSL/HTML 全缺失,外部 AI 无法生成这些页面。建议重新导出。',
     })
   }
 
@@ -246,6 +256,28 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
       detail: '未识别出入口页(登录/启动/首页)。',
       suggestion: '建议手动指定一个入口页,或为入口页添加明确命名。',
     })
+  }
+
+  // 审计 A12 / 14.3(P0):页面>1 且交互=0 不可高分,强制扣分并生成 unresolvedQuestion
+  const pageCount = pkg.pageList.pages.filter(p => p.pageType !== 'component' && p.pageType !== 'unknown').length
+  const interactionCount = pkg.interactionGraph.totalInteractions
+  if (pageCount > 1 && interactionCount === 0) {
+    issues.push({
+      id: 'zero_interactions',
+      severity: 'blocking',
+      category: '关系完整性',
+      title: `${pageCount} 个页面但无交互关系`,
+      detail: '设计稿包含多个页面,但插件未识别出任何页面关系(跳转/弹窗/状态)。',
+      suggestion: '① 检查设计稿是否有原型连线(reactions);② 检查按钮/链接命名是否包含"新增/编辑/查看/返回"等关键词;③ 在页面流程确认页手动补充主流程。',
+    })
+    // 生成待确认问题(引导用户手动建立主流程)
+    if (!pkg.interactionGraph.unresolvedQuestions.some(q => q.id === 'q_zero_inter')) {
+      pkg.interactionGraph.unresolvedQuestions.push({
+        id: 'q_zero_inter',
+        question: `当前设计稿有 ${pageCount} 个页面,但未识别出任何关系。请补充:① 主页面入口;② 页面间如何跳转;③ 是否有弹窗/抽屉。`,
+        suggestedOptions: ['手动补充主流程', '添加原型连线后重新生成', '当前为单页应用(无需关系)'],
+      })
+    }
   }
 
   // 14. PRD 缺失

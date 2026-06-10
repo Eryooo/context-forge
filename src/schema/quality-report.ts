@@ -59,7 +59,7 @@ export interface QualityReport {
   totalIssues: number
 }
 
-// 评分算法(PRD §14.2)
+// 评分算法(审计 14.3:加交互完整度,0关系大幅扣分)
 export function calculateQualityScore(checks: QualityReport['checks'], issues: QualityIssue[]): number {
   let score = 100
 
@@ -74,6 +74,13 @@ export function calculateQualityScore(checks: QualityReport['checks'], issues: Q
   // 特定检查项额外扣分
   if (checks.hasEntryPageMissing) score -= 10
   if (checks.hasPromptTooLong || checks.hasPackageTooLarge) score -= 5
+
+  // 审计 A12 / 14.3:交互完整度扣分(0 关系不可高分)
+  // zero_interactions 已是 blocking(-20),这里再追加惩罚性扣分,确保不可能高分
+  const hasZeroInteractions = issues.some(i => i.id === 'zero_interactions')
+  if (hasZeroInteractions) {
+    score -= 30 // 额外扣30分,确保总扣分≥50
+  }
 
   return Math.max(0, Math.min(100, score))
 }
