@@ -1,0 +1,23 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆角方块(品牌蓝,与 UI 主色一致) -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#1456f0"/>
+
+  <!-- 后置卡片(代表多页面设计稿) -->
+  <rect x="34" y="30" width="50" height="64" rx="8" fill="#ffffff" fill-opacity="0.45"/>
+
+  <!-- 前置卡片 -->
+  <rect x="42" y="40" width="50" height="64" rx="8" fill="#ffffff"/>
+
+  <!-- 卡片内容线(代表上下文/结构摘要) -->
+  <rect x="51" y="54" width="32" height="6" rx="3" fill="#9db8ff"/>
+  <rect x="51" y="68" width="32" height="6" rx="3" fill="#c7d6ff"/>
+  <rect x="51" y="82" width="20" height="6" rx="3" fill="#c7d6ff"/>
+
+  <!-- AI 火花(spark):四角星,表示 AI 增强 -->
+  <path d="M95 30
+           C96 39 99 42 108 43
+           C99 44 96 47 95 56
+           C94 47 91 44 82 43
+           C91 42 94 39 95 30 Z"
+        fill="#ffd54a"/>
+</svg>

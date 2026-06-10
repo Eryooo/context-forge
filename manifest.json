@@ -1,0 +1,13 @@
+{
+  "name": "MasterGo AI Context ",
+  "id": 195736278570941,
+  "main": "dist/main.js",
+  "ui": "dist/index.html",
+  "editor_type": [
+    "canvas",
+    "devMode"
+  ],
+  "capabilities": [
+    "inspect"
+  ]
+}
