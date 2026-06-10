@@ -357,6 +357,16 @@ export async function generateAIContextPackage(
   // 运行质量检查
   pkg.qualityReport = runQualityChecks(pkg)
 
+  // 最终汇总日志(供诊断快照查看)
+  console.log('[orchestrator] ===== 最终结果汇总 =====')
+  console.log(`  页面数: ${pageNodes.length}`)
+  pageNodes.forEach(p => {
+    console.log(`    - "${p.pageName}" type=${p.pageType} conf=${p.typeConfidence.toFixed(2)}`)
+  })
+  console.log(`  交互关系数: ${interactions.length}`)
+  console.log(`  主流程: ${mainFlow.map(id => pageNodes.find(p => p.pageId === id)?.pageName).join(' → ')}`)
+  console.log(`  质量评分: ${pkg.qualityReport.score}`)
+
   onProgress?.('完成', 5, 5, `数据包生成完成(${Date.now() - startTime}ms)`)
 
   return pkg

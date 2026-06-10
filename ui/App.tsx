@@ -11,6 +11,8 @@ import {
 } from '@messages/sender'
 import type { AIContextPackage } from '@schema/package-schema'
 import { getDiagSnapshot, BUILD_ID, pushMainLog } from './diag'
+import { FlowConfirm } from './components/FlowConfirm'
+import type { Interaction } from '@schema/interaction'
 
 type ExportMode = 'selected_frames' | 'current_page' | 'whole_document'
 
@@ -222,6 +224,25 @@ function App() {
               <button onClick={() => exportAs('markdown')}>导出 Markdown</button>
             </div>
           </div>
+        )}
+
+        {/* 页面流程确认(PRD §10.4 核心页面) */}
+        {pkg && (
+          <FlowConfirm
+            pkg={pkg}
+            onUpdate={(updated: Interaction[]) => {
+              // 更新本地包的交互关系(用户确认/删除后)
+              setPkg({
+                ...pkg,
+                interactionGraph: {
+                  ...pkg.interactionGraph,
+                  interactions: updated,
+                  totalInteractions: updated.length,
+                  userConfirmedCount: updated.filter((i) => i.confirmedByUser).length,
+                },
+              })
+            }}
+          />
         )}
 
         {exportResult && (

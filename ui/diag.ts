@@ -8,7 +8,7 @@
 // 安装时机:必须在 App 之前(见 index.tsx 顶部 import)。
 // ============================================================
 
-export const BUILD_ID = 'probe-4' // 每次重新构建我会 +1,便于确认你跑的是哪一版
+export const BUILD_ID = 'probe-5' // 每次重新构建我会 +1,便于确认你跑的是哪一版
 
 export interface LogEntry {
   t: number

@@ -43,6 +43,11 @@ export function findInteractionCandidates(
   const walk = (node: any) => {
     const name = (node.name || '').toLowerCase()
 
+    // ===== 最高优先级:任何节点有原型连线(reactions)就识别为交互 =====
+    // 这是最可靠的信号,不依赖命名。之前的 bug 是只在命名匹配后才读 reactions。
+    const reactions = (node as any).reactions as any[] | undefined
+    const hasReaction = Array.isArray(reactions) && reactions.length > 0
+
     // 判断是否为触发元素(放宽规则,增加匹配)
     let triggerType: TriggerElementType | null = null
 
@@ -88,6 +93,11 @@ export function findInteractionCandidates(
       }
     }
 
+    // 有原型连线但命名没匹配到 → 仍识别为交互(类型按 unknown)
+    if (!triggerType && hasReaction) {
+      triggerType = 'unknown'
+    }
+
     if (triggerType) {
       const candidate: InteractionCandidate = {
         fromPageId: pageId,
@@ -96,10 +106,9 @@ export function findInteractionCandidates(
         triggerNodeId: node.id,
       }
 
-      // 检查是否有原型连线(reactions)
-      const reactions = (node as any).reactions as any[] | undefined
-      if (Array.isArray(reactions) && reactions.length > 0) {
-        const reaction = reactions[0] // 取第一个
+      // 记录原型连线(如果有)
+      if (hasReaction) {
+        const reaction = reactions![0] // 取第一个
         candidate.prototypeAction = {
           trigger: reaction.trigger?.type || 'ON_CLICK',
           actionType: reaction.action?.type || 'NODE',
