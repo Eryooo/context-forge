@@ -1,15 +1,22 @@
 // ============================================================
 // 导出模块 — Prompt / JSON / Markdown 生成
 // Step 7 核心逻辑,PRD §12 定义的 Prompt 结构。
+// 安全:所有导出入口先调 sanitizePackageForExport(审计 P0)。
 // ============================================================
 
 import type { AIContextPackage, ExportFormat, ExportOptions } from '../schema/package-schema'
 import type { PageNode } from '../schema/page-graph'
 import type { Interaction } from '../schema/interaction'
+import { sanitizePackageForExport, applyRawPRDPolicy } from './export/sanitize'
 
 // ========== Prompt 生成(PRD §12.2 定义的 12 节结构) ==========
 
 export function generatePrompt(pkg: AIContextPackage, options?: ExportOptions): string {
+  // 安全:导出前脱敏(审计 P0)。Prompt 不内嵌 base64,仅说明资产位置。
+  let clean = sanitizePackageForExport(pkg)
+  clean = applyRawPRDPolicy(clean, options?.includeRawPRD ?? false)
+  pkg = clean
+
   const sections: string[] = []
 
   // § 1. 任务目标
@@ -24,12 +31,12 @@ export function generatePrompt(pkg: AIContextPackage, options?: ExportOptions): 
   // § 2. 数据包说明
   sections.push('# 数据包说明')
   sections.push('')
-  sections.push(`本数据包由 **MasterGo AI Context Packager** 导出,包含:`)
+  sections.push(`本数据包由 **ContextForge** 导出,包含:`)
   sections.push(`- **${pkg.pageList.pages.length} 个页面** (主页面 ${pkg.pageGraph.mainPageCount},弹窗/抽屉 ${pkg.pageGraph.overlayCount},状态页 ${pkg.pageGraph.stateCount})`)
   sections.push(`- **${pkg.interactionGraph.totalInteractions} 条交互关系** (${pkg.interactionGraph.highConfidenceCount} 条高置信度,${pkg.interactionGraph.userConfirmedCount} 条用户已确认)`)
   sections.push(`- **质量评分**: ${pkg.qualityReport.score}/100`)
-  if (pkg.aiSettings?.enabled) {
-    sections.push(`- **AI 增强**: 已启用(${pkg.aiSettings.model})`)
+  if (pkg.aiEnhancement?.enabled) {
+    sections.push(`- **AI 增强**: 已启用(${pkg.aiEnhancement.model || '未指定模型'})`)
   }
   sections.push('')
 
@@ -220,15 +227,23 @@ function statusIcon(status: string): string {
   }
 }
 
-// ========== JSON 导出(完整数据包) ==========
+// ========== JSON 导出(完整数据包,内联真实资产) ==========
 
-export function exportJSON(pkg: AIContextPackage): string {
-  return JSON.stringify(pkg, null, 2)
+export function exportJSON(pkg: AIContextPackage, options?: ExportOptions): string {
+  // 安全:导出前脱敏(审计 P0)
+  let clean = sanitizePackageForExport(pkg)
+  clean = applyRawPRDPolicy(clean, options?.includeRawPRD ?? false)
+  return JSON.stringify(clean, null, 2)
 }
 
 // ========== Markdown 导出(可读性优先) ==========
 
-export function exportMarkdown(pkg: AIContextPackage): string {
+export function exportMarkdown(pkg: AIContextPackage, options?: ExportOptions): string {
+  // 安全:导出前脱敏(审计 P0)。Markdown 不内嵌 base64。
+  let clean = sanitizePackageForExport(pkg)
+  clean = applyRawPRDPolicy(clean, options?.includeRawPRD ?? false)
+  pkg = clean
+
   const md: string[] = []
 
   md.push(`# ${pkg.project.name}`)
@@ -289,13 +304,14 @@ export function exportMarkdown(pkg: AIContextPackage): string {
 // ========== 统一导出入口 ==========
 
 export function exportPackage(pkg: AIContextPackage, options: ExportOptions): string {
+  // 注:各导出函数内部已各自 sanitize(幂等),此处只负责分派。
   switch (options.format) {
     case 'prompt':
       return generatePrompt(pkg, options)
     case 'json':
-      return exportJSON(pkg)
+      return exportJSON(pkg, options)
     case 'markdown':
-      return exportMarkdown(pkg)
+      return exportMarkdown(pkg, options)
     default:
       throw new Error(`Unsupported format: ${options.format}`)
   }

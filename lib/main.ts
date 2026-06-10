@@ -6,6 +6,7 @@
 import { sendMsgToUI, PluginMessage, UIMessage } from '@messages/sender'
 import type { EnvInfo } from '@messages/sender'
 import { quickExport, generateAIContextPackage } from '@modules/orchestrator'
+import { redactArgs } from '@modules/security/redact'
 import type { AISettings } from '@schema/ai-settings'
 import type { PRDContext } from '@schema/package-schema'
 
@@ -175,21 +176,22 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
 mg.showUI(__html__, { width: 520, height: 720 })
 
 // 主线程日志转发到 UI(供调试面板捕获)
+// 安全:转发前必须脱敏(redactArgs),防止 apiKey/rawPRD 等泄漏到 UI/调试快照。
 const origLog = console.log.bind(console)
 const origWarn = console.warn.bind(console)
 const origError = console.error.bind(console)
 
 console.log = (...args: any[]) => {
   origLog(...args)
-  sendMsgToUI({ type: PluginMessage.LOG, data: { level: 'log', args } })
+  sendMsgToUI({ type: PluginMessage.LOG, data: { level: 'log', args: redactArgs(args) } })
 }
 console.warn = (...args: any[]) => {
   origWarn(...args)
-  sendMsgToUI({ type: PluginMessage.LOG, data: { level: 'warn', args } })
+  sendMsgToUI({ type: PluginMessage.LOG, data: { level: 'warn', args: redactArgs(args) } })
 }
 console.error = (...args: any[]) => {
   origError(...args)
-  sendMsgToUI({ type: PluginMessage.LOG, data: { level: 'error', args } })
+  sendMsgToUI({ type: PluginMessage.LOG, data: { level: 'error', args: redactArgs(args) } })
 }
 
 console.log('[main] 插件已启动,command=', safeGet(() => mg.command))

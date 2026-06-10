@@ -1,18 +1,28 @@
 // ============================================================
 // 数据包顶层 Schema — 汇总所有模块(PRD §11.3)
+// 安全约束:本文件定义的 AIContextPackage 会被导出为 JSON/Prompt/MD,
+// 因此严禁包含任何敏感字段(apiKey 等)。AI 配置只用 AIEnhancementMeta(非敏感元信息)。
 // ============================================================
 
-import type { AISettings } from './ai-settings'
 import type { PageGraph, PageList } from './page-graph'
 import type { InteractionGraph } from './interaction'
 import type { QualityReport } from './quality-report'
 import type { DataStatus } from './page-graph'
 
+// 导出范围(审计 4.3:扩展为 6 值,覆盖真实使用场景)
+export type ExportMode =
+  | 'selected_nodes'              // 选中的任意节点
+  | 'selected_frames'            // 选中的 Frame
+  | 'current_page_top_frames'    // 当前页面顶层 Frame
+  | 'container_children'         // 容器(Section)内顶层页面
+  | 'manual_selected_pages'      // UI 手动勾选页面
+  | 'flow_group'                 // 按流程分组
+
 // 数据包元信息
 export interface PackageMeta {
   schemaVersion: string         // e.g. "1.0.0"
-  exportTool: string            // "MasterGo AI Context Packager"
-  exportMode: 'selected_frames' | 'current_page' | 'whole_document'
+  exportTool: string            // "ContextForge"
+  exportMode: ExportMode
   exportedAt: number            // 时间戳
   aiEnhanced: boolean           // 是否启用了 AI 增强
   buildId?: string              // 插件构建号(调试用)
@@ -32,7 +42,7 @@ export interface PRDContext {
   userStories?: string[]        // 用户故事
   acceptanceCriteria?: string[] // 验收标准
   specialRules?: string[]       // 特殊规则
-  rawPRD?: string               // 原始 PRD 全文(可选)
+  rawPRD?: string               // 原始 PRD 全文(可选;默认不进历史记录;导出由用户勾选)
 }
 
 // 数据采集状态统计
@@ -57,6 +67,38 @@ export interface AIExecutionInstruction {
   outputRequirement: string     // e.g. "外部 AI 工具需要基于该数据包生成完整可运行 HTML Demo"
 }
 
+// ============================================================
+// AI 增强元信息(安全:不含 apiKey/baseUrl 等敏感字段)
+// 取代原 aiSettings 字段,可安全进入导出包。
+// ============================================================
+export interface AIEnhancementMeta {
+  enabled: boolean
+  provider?: string             // e.g. "openai-compatible"
+  model?: string                // e.g. "gpt-4"(模型名非敏感)
+  usages?: {
+    pageSemantics: boolean
+    relationInference: boolean
+    prdSummary: boolean
+    promptCompression: boolean
+    qualityCheck: boolean
+  }
+}
+
+// ============================================================
+// 页面资产(审计 4.4 / §3:JSON 内联真实 DSL/HTML/截图,否则外部 AI 读不到)
+// ============================================================
+export interface PageAssets {
+  dsl?: unknown                          // 真实 DSL 内容(codegen 或节点树 JSON)
+  html?: string                          // 真实 HTML 内容(如可用)
+  screenshotBase64?: string              // 截图 base64(仅进 JSON,不进 Prompt)
+  screenshotMime?: 'image/png'
+  dslSource?: 'codegen' | 'node_tree' | 'summary'  // DSL 来源(降级链路)
+}
+
+export interface PackageAssets {
+  pages: Record<string, PageAssets>      // pageId → 资产
+}
+
 // 顶层数据包
 export interface AIContextPackage {
   packageMeta: PackageMeta
@@ -70,9 +112,12 @@ export interface AIContextPackage {
   // 上下文
   prdContext?: PRDContext       // PRD 补充(可选)
 
+  // 真实资产(JSON 内联,外部 AI 可直接读)
+  assets?: PackageAssets
+
   // 质量与配置
   qualityReport: QualityReport
-  aiSettings?: AISettings       // AI 配置(如果启用)
+  aiEnhancement?: AIEnhancementMeta  // AI 增强元信息(非敏感,取代 aiSettings)
 
   // 统计
   collectionStats: CollectionStats
@@ -88,6 +133,7 @@ export type ExportFormat = 'json' | 'markdown' | 'prompt' | 'zip'
 export interface ExportOptions {
   format: ExportFormat
   includePRD: boolean           // 是否包含 PRD
+  includeRawPRD?: boolean       // 是否包含 rawPRD(默认 false,用户主动勾选)
   includeScreenshots: boolean   // 是否包含截图
   compressPrompt: boolean       // 是否压缩 Prompt(需 AI)
   targetTool?: AIExecutionInstruction['targetTool']

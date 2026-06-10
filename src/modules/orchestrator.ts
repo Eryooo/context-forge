@@ -3,7 +3,7 @@
 // 这是插件核心逻辑,协调 collector → identifier → inference → quality → export
 // ============================================================
 
-import type { AIContextPackage, PackageMeta, ProjectInfo, CollectionStats } from '../schema/package-schema'
+import type { AIContextPackage, PackageMeta, ProjectInfo, CollectionStats, ExportMode, PackageAssets, AIEnhancementMeta } from '../schema/package-schema'
 import type { PageNode, PageList, PageGraph, PageGroup, PageChild } from '../schema/page-graph'
 import type { InteractionGraph, Interaction } from '../schema/interaction'
 import type { QualityReport } from '../schema/quality-report'
@@ -52,7 +52,7 @@ export interface ProgressCallback {
 export async function generateAIContextPackage(
   projectName: string,
   projectDescription: string,
-  exportMode: 'selected_frames' | 'current_page' | 'whole_document',
+  exportMode: ExportMode,
   aiSettings?: AISettings,
   prdContext?: any,
   onProgress?: ProgressCallback
@@ -65,15 +65,27 @@ export async function generateAIContextPackage(
   onProgress?.('选区读取', 0, 5, '正在读取选区节点...')
 
   let sourceNodes: ReadonlyArray<SceneNode> = []
-  if (exportMode === 'selected_frames') {
+  if (exportMode === 'selected_frames' || exportMode === 'selected_nodes' || exportMode === 'manual_selected_pages' || exportMode === 'flow_group') {
     sourceNodes = getSelection()
     if (sourceNodes.length === 0) {
       throw new Error('未选中任何节点。请在画布中选择要导出的 Frame,或切换到"当前页面"模式。')
     }
-  } else if (exportMode === 'current_page') {
+  } else if (exportMode === 'current_page_top_frames') {
     sourceNodes = getCurrentPageTopLevelNodes()
+  } else if (exportMode === 'container_children') {
+    // 容器模式:选中的是 Section/容器,递归读取其内顶层页面 Frame
+    const sel = getSelection()
+    if (sel.length === 0) {
+      throw new Error('未选中容器。请选择一个 Section 或容器节点。')
+    }
+    const collected: SceneNode[] = []
+    for (const node of sel) {
+      const children = (node as any).children
+      if (Array.isArray(children)) collected.push(...children)
+      else collected.push(node)
+    }
+    sourceNodes = collected
   } else {
-    // whole_document 模式(未实现,先当 current_page)
     sourceNodes = getCurrentPageTopLevelNodes()
   }
 
@@ -118,6 +130,7 @@ export async function generateAIContextPackage(
   const screenshotsMap = new Map<string, string>() // pageId → base64
   const dslMap = new Map<string, any>() // pageId → dsl
   const htmlMap = new Map<string, string>() // pageId → html
+  const dslSourceMap = new Map<string, 'codegen' | 'node_tree' | 'summary'>() // pageId → dsl 来源
 
   for (let i = 0; i < validPages.length; i++) {
     const node = validPages[i]
@@ -134,6 +147,7 @@ export async function generateAIContextPackage(
     // DSL 采集(三层降级)
     const dslResult = await collectDSL(node)
     dslMap.set(pageId, dslResult.dsl)
+    dslSourceMap.set(pageId, dslResult.source)
     if (dslResult.status === 'success') collectionStats.dslSuccess++
     else if (dslResult.status === 'fallback') collectionStats.dslFallback++
 
@@ -323,11 +337,11 @@ export async function generateAIContextPackage(
 
   const packageMeta: PackageMeta = {
     schemaVersion: '1.0.0',
-    exportTool: 'MasterGo AI Context Packager',
+    exportTool: 'ContextForge',
     exportMode,
     exportedAt: Date.now(),
     aiEnhanced: aiSettings?.enabled || false,
-    buildId: 'probe-3', // 当前构建号
+    buildId: 'mvp-r2',
   }
 
   const project: ProjectInfo = {
@@ -336,6 +350,28 @@ export async function generateAIContextPackage(
     documentId: (mg as any).documentId,
   }
 
+  // 构建 assets:把采集到的 dsl/html/screenshot 真正注入数据包(审计 P0)
+  const assets: PackageAssets = { pages: {} }
+  for (const page of pageNodes) {
+    assets.pages[page.pageId] = {
+      dsl: dslMap.get(page.pageId),
+      html: htmlMap.get(page.pageId),
+      screenshotBase64: screenshotsMap.get(page.pageId),
+      screenshotMime: 'image/png',
+      dslSource: dslSourceMap.get(page.pageId),
+    }
+  }
+
+  // AI 增强元信息(安全:只含非敏感字段,不含 apiKey/baseUrl)
+  const aiEnhancement: AIEnhancementMeta | undefined = aiSettings
+    ? {
+        enabled: aiSettings.enabled,
+        provider: aiSettings.provider,
+        model: aiSettings.model,
+        usages: aiSettings.usages,
+      }
+    : undefined
+
   const pkg: AIContextPackage = {
     packageMeta,
     project,
@@ -343,8 +379,9 @@ export async function generateAIContextPackage(
     pageGraph,
     interactionGraph,
     prdContext,
+    assets,
     qualityReport: {} as QualityReport, // 先占位,下面填充
-    aiSettings,
+    aiEnhancement,
     collectionStats,
     aiExecutionInstruction: {
       targetTool: 'generic',
@@ -377,7 +414,7 @@ export async function generateAIContextPackage(
 export async function quickExport(
   projectName: string,
   projectDescription: string,
-  exportMode: 'selected_frames' | 'current_page' | 'whole_document',
+  exportMode: ExportMode,
   format: 'prompt' | 'json' | 'markdown',
   aiSettings?: AISettings,
   prdContext?: any,
