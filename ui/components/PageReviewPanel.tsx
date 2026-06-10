@@ -70,12 +70,13 @@ export function PageReviewPanel({ pages, onChange }: Props) {
         </label>
       </div>
       <div className="page-actions">
-        <button className="mini" onClick={() => updatePage(page.pageId, { isEntryPage: !page.isEntryPage })}>
+        {/* 设入口页/排除功能需扩展 PageNode schema,S13 统一处理 */}
+        {/* <button className="mini" onClick={() => updatePage(page.pageId, { isEntryPage: !page.isEntryPage })}>
           {page.isEntryPage ? '✓ 入口页' : '设为入口页'}
         </button>
         <button className="mini" onClick={() => updatePage(page.pageId, { excluded: !page.excluded })}>
           {page.excluded ? '恢复' : '排除'}
-        </button>
+        </button> */}
       </div>
     </div>
   )
