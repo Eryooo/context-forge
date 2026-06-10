@@ -23,7 +23,7 @@ const NAMING_RULES = {
   component: ['组件', '素材', 'component', 'widget', 'module'],
 }
 
-// ========== 页面类型识别 ==========
+// ========== 页面类型识别(审计 9.3:优先级排序,避免 form 抢 modal)==========
 
 export function classifyPageType(
   node: any,
@@ -31,47 +31,61 @@ export function classifyPageType(
 ): { type: PageType; confidence: number } {
   const name = (node.name || '').toLowerCase()
 
-  // 遍历规则,计算匹配度
-  const scores: Array<{ type: PageType; score: number }> = []
+  // 审计 9.3:优先级判断,state_* > modal/drawer > entry/home/list/detail/form > component > unknown
+  // 先匹配高优先级,匹配即返回,避免"新增任务弹窗"被 form 抢走而非 modal
 
-  for (const [typeKey, keywords] of Object.entries(NAMING_RULES)) {
-    let score = 0
-    for (const kw of keywords) {
-      if (name.includes(kw.toLowerCase())) {
-        score += 1.0 // 完整匹配
-      }
-    }
-    if (score > 0) {
-      scores.push({ type: typeKey as PageType, score })
-    }
+  // P1: state_* (最高优先级)
+  for (const kw of NAMING_RULES.state_empty) {
+    if (name.includes(kw.toLowerCase())) return { type: 'state_empty', confidence: 0.85 }
+  }
+  for (const kw of NAMING_RULES.state_loading) {
+    if (name.includes(kw.toLowerCase())) return { type: 'state_loading', confidence: 0.85 }
+  }
+  for (const kw of NAMING_RULES.state_error) {
+    if (name.includes(kw.toLowerCase())) return { type: 'state_error', confidence: 0.85 }
+  }
+  for (const kw of NAMING_RULES.state_success) {
+    if (name.includes(kw.toLowerCase())) return { type: 'state_success', confidence: 0.85 }
   }
 
-  // 特征辅助判断(无命名匹配时)
-  if (scores.length === 0) {
-    // 尺寸特征:小尺寸可能是 modal/drawer
-    const w = nodeSummary.width
-    const h = nodeSummary.height
-    if (w < 600 && h < 600) {
-      scores.push({ type: 'modal', score: 0.4 })
-    }
-    if (w < 400 && h > 600) {
-      scores.push({ type: 'drawer', score: 0.4 })
-    }
-
-    // 默认 unknown
-    if (scores.length === 0) {
-      return { type: 'unknown', confidence: 0.3 }
-    }
+  // P2: modal/drawer(审计:弹窗/modal/dialog/popup→modal;抽屉/drawer→drawer)
+  for (const kw of NAMING_RULES.modal) {
+    if (name.includes(kw.toLowerCase())) return { type: 'modal', confidence: 0.85 }
+  }
+  for (const kw of NAMING_RULES.drawer) {
+    if (name.includes(kw.toLowerCase())) return { type: 'drawer', confidence: 0.85 }
   }
 
-  // 取最高分
-  scores.sort((a, b) => b.score - a.score)
-  const best = scores[0]
+  // P3: entry/home/list/detail/form
+  for (const kw of NAMING_RULES.entry) {
+    if (name.includes(kw.toLowerCase())) return { type: 'entry', confidence: 0.8 }
+  }
+  for (const kw of NAMING_RULES.home) {
+    if (name.includes(kw.toLowerCase())) return { type: 'home', confidence: 0.8 }
+  }
+  for (const kw of NAMING_RULES.list) {
+    if (name.includes(kw.toLowerCase())) return { type: 'list', confidence: 0.75 }
+  }
+  for (const kw of NAMING_RULES.detail) {
+    if (name.includes(kw.toLowerCase())) return { type: 'detail', confidence: 0.75 }
+  }
+  for (const kw of NAMING_RULES.form) {
+    if (name.includes(kw.toLowerCase())) return { type: 'form', confidence: 0.7 }
+  }
 
-  // 置信度归一化:1 个匹配词 → 0.7;2 个 → 0.85;3+ → 0.95
-  let confidence = Math.min(0.95, 0.7 + best.score * 0.15)
+  // P4: component
+  for (const kw of NAMING_RULES.component) {
+    if (name.includes(kw.toLowerCase())) return { type: 'component', confidence: 0.6 }
+  }
 
-  return { type: best.type, confidence }
+  // 无命名匹配时,尺寸特征辅助
+  const w = nodeSummary.width
+  const h = nodeSummary.height
+  if (w < 600 && h < 600) return { type: 'modal', confidence: 0.4 }
+  if (w < 400 && h > 600) return { type: 'drawer', confidence: 0.4 }
+
+  // 默认 unknown
+  return { type: 'unknown', confidence: 0.3 }
 }
 
 // ========== 弹窗 / 抽屉识别(基于尺寸 + 命名) ==========
