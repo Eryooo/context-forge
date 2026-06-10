@@ -188,8 +188,8 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
         result.tests.push({ name: 'mg.codegen 存在性', pass: typeof (mg as any).codegen !== 'undefined' })
         if ((mg as any).codegen) {
           try {
-            const sel = mg.currentPage.selection
-            if (!sel || sel.length === 0) {
+            const sel = safeGet(() => (mg as any).currentPage?.selection) || []
+            if (sel.length === 0) {
               result.tests.push({ name: 'getDSL 可用性', pass: false, error: '未选中节点' })
             } else {
               const node = sel[0]
