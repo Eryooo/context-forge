@@ -435,3 +435,11 @@ button.mini.danger { color: var(--error); border-color: var(--error); }
 .dim-bar { flex: 1; height: 8px; background: var(--border, #eee); border-radius: 4px; overflow: hidden; }
 .dim-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
 .dim-val { width: 32px; text-align: right; font-size: 12px; color: var(--muted, #888); flex-shrink: 0; }
+
+/* ===== R3-S14: 导出风险 gating ===== */
+.export-gate { padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+.export-gate.blocking { background: rgba(229,72,77,0.08); border: 1px solid var(--error, #e5484d); }
+.export-gate.warning { background: rgba(217,119,6,0.08); border: 1px solid var(--warning, #d97706); }
+.export-gate p { margin: 0 0 8px; }
+.export-gate.warning p { margin: 0; }
+.export-options button:disabled { opacity: 0.4; cursor: not-allowed; }

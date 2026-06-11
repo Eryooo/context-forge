@@ -137,18 +137,32 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
       }
 
       case UIMessage.LOAD_SETTINGS: {
-        // 加载 AI 设置(从 clientStorage)
-        const settings = await mg.clientStorage.getAsync('ai_settings')
+        // R3-S14:命名空间 key + 版本号,兼容旧 key 迁移
+        const SETTINGS_KEY = 'context-forge:ai-settings'
+        let stored = await mg.clientStorage.getAsync(SETTINGS_KEY)
+        // 迁移:旧 key 'ai_settings'(无版本包裹)
+        if (!stored) {
+          const legacy = await mg.clientStorage.getAsync('ai_settings')
+          if (legacy) {
+            stored = { version: 1, settings: legacy }
+            await mg.clientStorage.setAsync(SETTINGS_KEY, stored)
+            await mg.clientStorage.deleteAsync('ai_settings')
+          }
+        }
+        const settings = stored?.settings ?? null
         sendMsgToUI({
           type: PluginMessage.SETTINGS_LOADED,
-          data: settings || null,
+          data: settings,
         })
         break
       }
 
       case UIMessage.SAVE_SETTINGS: {
-        // 保存 AI 设置
-        await mg.clientStorage.setAsync('ai_settings', msg.data)
+        // R3-S14:带版本号包裹
+        await mg.clientStorage.setAsync('context-forge:ai-settings', {
+          version: 1,
+          settings: msg.data,
+        })
         sendMsgToUI({
           type: PluginMessage.SETTINGS_SAVED,
           data: { success: true },
@@ -157,7 +171,8 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
       }
 
       case UIMessage.CLEAR_SETTINGS: {
-        // 清除 AI Key
+        // R3-S14:清除新旧 key
+        await mg.clientStorage.deleteAsync('context-forge:ai-settings')
         await mg.clientStorage.deleteAsync('ai_settings')
         sendMsgToUI({
           type: PluginMessage.SETTINGS_CLEARED,
@@ -212,9 +227,14 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
         result.tests.push({ name: 'mg.codegen 存在性', pass: typeof (mg as any).codegen !== 'undefined' })
         if ((mg as any).codegen) {
           try {
-            const sel = safeGet(() => (mg as any).currentPage?.selection) || []
+            // R3-S14:同时尝试两条选区路径,记录各自结果,避免误判 codegen 不可用
+            const selA = safeGet(() => (mg as any).document?.currentPage?.selection)
+            const selB = safeGet(() => (mg as any).currentPage?.selection)
+            result.tests.push({ name: '选区路径 mg.document.currentPage.selection', pass: Array.isArray(selA), result: Array.isArray(selA) ? `${selA.length} 个` : '不可用' })
+            result.tests.push({ name: '选区路径 mg.currentPage.selection', pass: Array.isArray(selB), result: Array.isArray(selB) ? `${selB.length} 个` : '不可用' })
+            const sel = (Array.isArray(selA) && selA.length ? selA : null) || (Array.isArray(selB) && selB.length ? selB : null) || []
             if (sel.length === 0) {
-              result.tests.push({ name: 'getDSL 可用性', pass: false, error: '未选中节点' })
+              result.tests.push({ name: 'getDSL 可用性', pass: false, error: '未选中节点(请在 DevMode 下选中一个节点)' })
             } else {
               const node = sel[0]
               const dsl = await (mg as any).codegen.getDSL({ node })

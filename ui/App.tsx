@@ -41,6 +41,8 @@ function App() {
 
   // R3-S12:导出目标工具
   const [targetTool, setTargetTool] = useState<'claude_code' | 'codex' | 'cursor' | 'chatgpt' | 'generic'>('claude_code')
+  // R3-S14:导出风险 gating —— 用户确认"仍然导出"
+  const [forceExport, setForceExport] = useState(false)
 
   // AI 设置
   const [aiSettings, setAiSettings] = useState<AISettings | null>(null)
@@ -425,11 +427,37 @@ function App() {
                 <option value="generic">通用 / Generic</option>
               </select>
             </div>
-            <div className="export-options">
-              <button onClick={() => exportAs('json')}>导出 JSON</button>
-              <button onClick={() => exportAs('prompt')}>导出 Prompt</button>
-              <button onClick={() => exportAs('markdown')}>导出 Markdown</button>
-            </div>
+            {/* R3-S14:导出风险 gating */}
+            {(() => {
+              const blocking = pkg.qualityReport.blockingIssues.length
+              const warnings = pkg.qualityReport.warnings.length
+              const canRecommend = blocking === 0
+              const exportEnabled = canRecommend || forceExport
+              return (
+                <>
+                  {blocking > 0 && (
+                    <div className="export-gate blocking">
+                      <p>存在 {blocking} 个阻断性问题,不建议直接导出。处理后导出的数据包更可信。</p>
+                      {!forceExport && (
+                        <button className="mini danger" onClick={() => setForceExport(true)}>
+                          我已了解,仍然导出
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {blocking === 0 && warnings > 0 && (
+                    <div className="export-gate warning">
+                      <p>有 {warnings} 个警告项,可以导出,但建议先核对以提升质量。</p>
+                    </div>
+                  )}
+                  <div className="export-options">
+                    <button disabled={!exportEnabled} onClick={() => exportAs('json')}>导出 JSON</button>
+                    <button disabled={!exportEnabled} onClick={() => exportAs('prompt')}>导出 Prompt</button>
+                    <button disabled={!exportEnabled} onClick={() => exportAs('markdown')}>导出 Markdown</button>
+                  </div>
+                </>
+              )
+            })()}
             {exportResult && (
               <div className="export-result">
                 <h3>导出完成({exportResult.format})</h3>
