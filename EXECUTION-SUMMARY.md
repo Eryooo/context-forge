@@ -320,3 +320,78 @@ PRD §14 的每一项检查都有对应代码实现,无遗漏。
 ---
 
 **用户请查看 `USER-GUIDE.md`,按指南验证插件功能。**
+
+---
+
+# R3 迭代执行总结(MVP 闭环修复版)
+
+R3 目标:把 R2 的半闭环补成真正闭环,使导出结果与用户确认状态完全一致。
+
+## 修改摘要
+
+15 个 Step 全部完成,8 个 P0 + 7 个 P1。核心:导出当前 pkg(不重新生成)、用户编辑闭环(新增/编辑关系/处理问题)、入口页/排除、完整重建 pageGraph、quality-checker 纯函数化。
+
+## 修复问题清单(对应 R2 审计)
+
+| 审计问题 | 等级 | 修复 |
+|---|---|---|
+| 导出重新生成丢用户编辑 | P0 | S1:EXPORT_CURRENT_PACKAGE 导出当前 pkg |
+| 手动新增关系是占位 | P0 | S5:AddRelationDialog 真实实现 |
+| 不能编辑关系目标 | P0 | S6:RelationEditor |
+| 待确认问题只展示不能处理 | P0 | S7:UnresolvedQuestionResolver |
+| 入口页/排除被注释 | P0 | S2:PageNode 扩展 + PageReviewPanel 启用 |
+| 页面编辑后 pageGraph 没重建 | P0 | S3:rebuildPageGraph + S4:recalculatePackage |
+| quality-checker 副作用 | P1 | S8:纯函数化,不修改 pkg |
+| deep-summary 死代码 | P1 | S9:接入 generatePageSummary + 暴露统计(R2自查已接入) |
+| 体积评估含 base64 误报 | P1 | S10:拆分三函数,剥离 base64 |
+| rawPRD 开关失效 | P1 | S11:全链路 includeRawPRD |
+| 导出目标固定 generic | P1 | S12:目标工具选择 + 专用说明 |
+| 质量分不可解释 | P1 | S13:5 维度分项评分 |
+| 无导出风险 gating | P1 | S14:blocking 禁用导出+仍然导出 |
+| AI key 命名不规范 | P1 | S14:context-forge:ai-settings+版本号+迁移 |
+| DevMode probe 路径错 | P1 | S14:双路径尝试 |
+| 文档不一致 | P1 | S15:package/manifest 改名,删本地路径,Figma 标 future |
+
+## 新增文件
+
+- src/modules/page-graph/rebuild.ts(rebuildPageGraph)
+- ui/components/relation-form.ts(关系表单共享逻辑)
+- ui/components/AddRelationDialog.tsx
+- ui/components/RelationEditor.tsx
+- ui/components/UnresolvedQuestionResolver.tsx
+
+## 修改文件
+
+messages/sender.ts、ui/App.tsx、lib/main.ts、src/modules/exporter.ts、
+src/modules/quality-checker.ts、src/modules/package/recalculate.ts、
+src/modules/page-identifier.ts、ui/components/FlowConfirm.tsx、
+ui/components/PageReviewPanel.tsx、src/schema/{package-schema,page-graph,interaction,quality-report}.ts、
+package.json、manifest.json、README.md、USER-GUIDE.md
+
+## 导出一致性
+
+EXPORT_CURRENT_PACKAGE 直接序列化用户当前 pkg(经 sanitize + applyRawPRDPolicy),
+不再调 quickExport 重新读设计稿。用户改类型/删关系/新增关系/处理问题后,导出即所见。
+
+## 用户闭环
+
+0 关系 → 手动新增主流程 → 设入口页 → 排除素材页 → 处理待确认问题 → 补 PRD
+→ 看分项评分与风险 → 选目标工具 → 导出确认后的最终包。全链路打通。
+
+## 安全自检
+
+- API Key 不进 pkg(aiEnhancement 仅含 provider/model,无 apiKey)
+- 导出前 sanitizePackageForExport 强制脱敏
+- console 转发前 redactSensitive
+- rawPRD 默认不进草稿(delete draft.rawPRD),导出受 includeRawPRD 开关控制
+- AI key 仅存 clientStorage(context-forge:ai-settings),清除清新旧两个 key
+
+## typecheck / build
+
+- npm run typecheck:通过(零错误)
+- npm run build:通过,dist/main.js(59KB)+ dist/index.html(206KB)
+
+## 尚未完成(R3 后)
+
+按 R3 规划「4. R3 后再做」:AI 增强真正接入、Claude Code 专用文件包、ZIP 导出、
+历史记录、分包、Figma 适配、设计变更 diff、稳定 diff(contentHash)、单测覆盖。

@@ -1,6 +1,6 @@
 {
-  "name": "mastergo-plugin",
-  "version": "0.0.0",
+  "name": "context-forge",
+  "version": "0.3.0",
   "scripts": {
     "dev": "yarn dev:ui & yarn dev:main",
     "dev:ui": "cross-env TARGET=ui NODE_ENV=development vite build --mode development -w",

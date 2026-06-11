@@ -1,6 +1,10 @@
-# ContextForge — MasterGo / Figma AI 上下文数据包生成器
+# ContextForge — MasterGo 设计上下文数据包生成器
 
-**ContextForge** 是一个插件工具,从 MasterGo / Figma 设计稿中提取完整上下文(页面结构 + 交互关系 + 业务规则 + 质量报告),生成标准化数据包,供外部 AI 工具(Claude/GPT/Cursor 等)生成可交互 HTML Demo 或 React/Vue 代码。
+**ContextForge** 是一个 MasterGo 插件,从设计稿中提取完整上下文(页面结构 + 交互关系 + 业务规则 + 质量报告),生成标准化数据包,供外部 AI 工具(Claude Code / Codex / Cursor / ChatGPT 等)生成可交互 HTML Demo / React Demo / Vue Demo。
+
+> **边界**:本插件只负责读取、识别、推断、确认、打包、导出设计上下文数据,**不生成 HTML / React / Vue,不运行原型**。代码生成由外部 AI 工具基于导出的数据包完成。
+>
+> **平台**:当前为 MasterGo 插件。Figma 适配为 future roadmap,尚未支持。
 
 ---
 
@@ -47,7 +51,7 @@
 ### 1. 克隆仓库
 ```bash
 git clone https://github.com/Eryooo/context-forge.git
-cd "context-forge/MasterGo AI Context "
+cd context-forge
 npm install
 ```
 
@@ -58,9 +62,9 @@ npm run build
 
 构建产物在 `dist/` 目录。
 
-### 3. 在 MasterGo / Figma 中安装
+### 3. 在 MasterGo 中安装
 - **MasterGo**:插件管理 → 从本地导入 → 选择 `dist/manifest.json`
-- **Figma**:Plugins → Development → New Plugin → 选择 `dist/manifest.json`(需改 manifest 适配 Figma API)
+- **Figma**(future roadmap):当前为 MasterGo 插件,Figma 适配为未来方向,尚未支持。
 
 ### 4. 使用
 1. 在设计稿中选中要导出的 Frame(或切换到"当前页面"模式)
@@ -73,7 +77,7 @@ npm run build
 ## 架构
 
 ```
-MasterGo AI Context /
+context-forge/
 ├── src/
 │   ├── schema/           # 数据包 Schema(TypeScript 类型定义)
 │   │   ├── package-schema.ts      # AIContextPackage 根类型
