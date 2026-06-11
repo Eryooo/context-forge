@@ -412,3 +412,18 @@ button.mini.danger { color: var(--error); border-color: var(--error); }
 .page-card .page-actions { display: flex; gap: 8px; margin-top: 8px; }
 .page-card .mini.active { background: var(--primary, #2d7ff9); color: #fff; }
 .page-card .mini:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ===== R3-S5/S6/S7: 关系对话框 + 待确认问题处理 ===== */
+.dialog-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.dialog { background: var(--bg, #fff); border-radius: 8px; padding: 20px; width: 90%; max-width: 460px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.dialog h3 { margin: 0 0 16px; }
+.dialog .form-group { margin-bottom: 12px; }
+.dialog .form-row { display: flex; gap: 12px; }
+.dialog .form-row .form-group { flex: 1; }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.dialog-hint { font-size: 12px; color: var(--warning, #d97706); margin-top: 8px; }
+.question-card { border: 1px solid var(--border, #e0e0e0); border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+.question-text { font-weight: 500; margin-bottom: 4px; }
+.question-meta, .question-options { font-size: 12px; color: var(--muted, #888); margin-bottom: 4px; }
+.question-form { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+.question-form select { flex: 1; min-width: 120px; }

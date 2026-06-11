@@ -7,6 +7,10 @@
 import React, { useState } from 'react'
 import type { AIContextPackage } from '@schema/package-schema'
 import type { Interaction } from '@schema/interaction'
+import { AddRelationDialog } from './AddRelationDialog'
+import { RelationEditor } from './RelationEditor'
+import { UnresolvedQuestionResolver } from './UnresolvedQuestionResolver'
+import type { RelationFormState } from './relation-form'
 
 interface Props {
   pkg: AIContextPackage
@@ -27,8 +31,12 @@ function confLabel(conf: number): string {
 }
 
 export function FlowConfirm({ pkg, onUpdate }: Props) {
-  const [interactions, setInteractions] = useState<Interaction[]>(pkg.interactionGraph.interactions)
+  // R3-S5 修复:不再用本地 useState 缓存 interactions(pkg 重算后会脱节)。
+  // 直接读 pkg,所有变更经 onUpdate 上抛触发重算,pkg 回流刷新视图。
+  const interactions = pkg.interactionGraph.interactions
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [addPreset, setAddPreset] = useState<Partial<RelationFormState> | undefined>(undefined)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const pageName = (pageId?: string) =>
     pkg.pageList.pages.find(p => p.pageId === pageId)?.pageName || pageId || '?'
@@ -40,7 +48,31 @@ export function FlowConfirm({ pkg, onUpdate }: Props) {
 
   const unresolvedQuestions = pkg.interactionGraph.unresolvedQuestions || []
 
-  // 0 关系空状态(审计 P0 / 10.2 / A15 / UX验收第2条:给原因+补救入口)
+  // 打开新增对话框(可带预设,如"添加弹窗关系")
+  const openAdd = (preset?: Partial<RelationFormState>) => {
+    setAddPreset(preset)
+    setShowAddDialog(true)
+  }
+
+  // 新增关系提交
+  const handleAddSubmit = (inter: Interaction) => {
+    setShowAddDialog(false)
+    setAddPreset(undefined)
+    onUpdate([...interactions, inter])
+  }
+
+  // 编辑关系提交
+  const handleEditSubmit = (inter: Interaction) => {
+    setEditingId(null)
+    onUpdate(interactions.map(i => (i.id === inter.id ? inter : i)))
+  }
+
+  // 待确认问题处理:更新某条关系或新增 user 关系
+  const handleQuestionResolve = (updated: Interaction[]) => {
+    onUpdate(updated)
+  }
+
+  // 0 关系空状态(审计 P0 / 10.2 / A15:给原因+补救入口)
   if (interactions.length === 0) {
     return (
       <div className="flow-confirm-empty">
@@ -54,41 +86,38 @@ export function FlowConfirm({ pkg, onUpdate }: Props) {
         </ul>
         <p className="empty-actions-label">你可以:</p>
         <div className="empty-actions">
-          <button onClick={() => setShowAddDialog(true)}>添加主流程</button>
-          <button onClick={() => setShowAddDialog(true)}>添加页面跳转</button>
-          <button onClick={() => setShowAddDialog(true)}>添加弹窗关系</button>
-          <button onClick={() => setShowAddDialog(true)}>添加状态归属</button>
+          <button onClick={() => openAdd({ interactionType: 'navigation', actionType: 'navigate', targetType: 'page' })}>添加页面跳转</button>
+          <button onClick={() => openAdd({ interactionType: 'overlay', actionType: 'openModal', targetType: 'overlay' })}>添加弹窗关系</button>
+          <button onClick={() => openAdd({ interactionType: 'state', actionType: 'showState', targetType: 'state' })}>添加状态归属</button>
         </div>
         <p className="empty-hint">
           提示:你也可以先在 MasterGo 中添加原型连线(reactions),或规范图层命名,然后重新生成数据包。
         </p>
+        {showAddDialog && (
+          <AddRelationDialog
+            pages={pkg.pageList.pages}
+            preset={addPreset}
+            onSubmit={handleAddSubmit}
+            onCancel={() => setShowAddDialog(false)}
+          />
+        )}
       </div>
     )
   }
 
   // 批量确认高置信度
   const confirmAllHigh = () => {
-    const updated = interactions.map(i =>
-      i.confidence >= 0.85 ? { ...i, confirmedByUser: true } : i
-    )
-    setInteractions(updated)
-    onUpdate(updated)
+    onUpdate(interactions.map(i => (i.confidence >= 0.85 ? { ...i, confirmedByUser: true } : i)))
   }
 
   // 确认单条
   const confirmOne = (id: string) => {
-    const updated = interactions.map(i =>
-      i.id === id ? { ...i, confirmedByUser: true } : i
-    )
-    setInteractions(updated)
-    onUpdate(updated)
+    onUpdate(interactions.map(i => (i.id === id ? { ...i, confirmedByUser: true } : i)))
   }
 
   // 删除单条
   const deleteOne = (id: string) => {
-    const updated = interactions.filter(i => i.id !== id)
-    setInteractions(updated)
-    onUpdate(updated)
+    onUpdate(interactions.filter(i => i.id !== id))
   }
 
   const renderCard = (inter: Interaction) => (
@@ -109,6 +138,7 @@ export function FlowConfirm({ pkg, onUpdate }: Props) {
         {!inter.confirmedByUser && (
           <button className="mini" onClick={() => confirmOne(inter.id)}>确认</button>
         )}
+        <button className="mini" onClick={() => setEditingId(inter.id)}>编辑</button>
         <button className="mini danger" onClick={() => deleteOne(inter.id)}>删除</button>
       </div>
     </div>
@@ -178,30 +208,44 @@ export function FlowConfirm({ pkg, onUpdate }: Props) {
         </section>
       )}
 
-      {/* 待确认问题队列 */}
-      {pkg.interactionGraph.unresolvedQuestions.length > 0 && (
+      {/* 待确认问题队列(R3-S7:可处理)*/}
+      {unresolvedQuestions.length > 0 && (
         <section className="flow-section">
-          <h3>待确认问题 ({pkg.interactionGraph.unresolvedQuestions.length})</h3>
-          {pkg.interactionGraph.unresolvedQuestions.map((q, idx) => (
-            <div key={idx} className="question-card">
-              <div className="question-text">{q.question}</div>
-              {q.suggestedOptions.length > 0 && (
-                <div className="question-options">
-                  建议: {q.suggestedOptions.join(' / ')}
-                </div>
-              )}
-            </div>
-          ))}
+          <h3>待确认问题 ({unresolvedQuestions.length})</h3>
+          <UnresolvedQuestionResolver
+            pkg={pkg}
+            onResolve={handleQuestionResolve}
+          />
         </section>
       )}
 
       {/* 底部操作栏 */}
       <section className="flow-actions">
-        <button onClick={() => setShowAddDialog(true)}>手动新增关系</button>
+        <button onClick={() => openAdd()}>手动新增关系</button>
         <span className="action-hint">
           你可以补充插件未识别的页面跳转、弹窗、状态关系。
         </span>
       </section>
+
+      {/* 新增关系对话框 */}
+      {showAddDialog && (
+        <AddRelationDialog
+          pages={pkg.pageList.pages}
+          preset={addPreset}
+          onSubmit={handleAddSubmit}
+          onCancel={() => setShowAddDialog(false)}
+        />
+      )}
+
+      {/* 编辑关系对话框 */}
+      {editingId && (
+        <RelationEditor
+          pages={pkg.pageList.pages}
+          interaction={interactions.find(i => i.id === editingId)!}
+          onSubmit={handleEditSubmit}
+          onCancel={() => setEditingId(null)}
+        />
+      )}
     </div>
   )
 }
