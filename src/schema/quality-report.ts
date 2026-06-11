@@ -43,8 +43,9 @@ export interface QualityReport {
   blockingIssues: QualityIssue[]     // 阻断性问题(必须解决)
   warnings: QualityIssue[]           // 警告(建议解决)
 
-  // 未解决问题(来自 InteractionGraph)
+  // 未解决问题(来自 InteractionGraph + 质量层生成,R3-S8 带 id 便于 merge)
   unresolvedQuestions: Array<{
+    id?: string
     question: string
     relatedPage?: string
     relatedElement?: string

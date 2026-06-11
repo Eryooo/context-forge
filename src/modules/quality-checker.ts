@@ -259,6 +259,8 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
   }
 
   // 审计 A12 / 14.3(P0):页面>1 且交互=0 不可高分,强制扣分并生成 unresolvedQuestion
+  // R3-S8:纯函数化 —— 不再 push 修改 pkg,改用本地数组收集质量层问题
+  const qualityQuestions: Array<{ id: string; question: string; relatedPage: string | undefined; relatedElement: string | undefined; suggestedOptions: string[] }> = []
   const pageCount = pkg.pageList.pages.filter(p => p.pageType !== 'component' && p.pageType !== 'unknown').length
   const interactionCount = pkg.interactionGraph.totalInteractions
   if (pageCount > 1 && interactionCount === 0) {
@@ -270,14 +272,14 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
       detail: '设计稿包含多个页面,但插件未识别出任何页面关系(跳转/弹窗/状态)。',
       suggestion: '① 检查设计稿是否有原型连线(reactions);② 检查按钮/链接命名是否包含"新增/编辑/查看/返回"等关键词;③ 在页面流程确认页手动补充主流程。',
     })
-    // 生成待确认问题(引导用户手动建立主流程)
-    if (!pkg.interactionGraph.unresolvedQuestions.some(q => q.id === 'q_zero_inter')) {
-      pkg.interactionGraph.unresolvedQuestions.push({
-        id: 'q_zero_inter',
-        question: `当前设计稿有 ${pageCount} 个页面,但未识别出任何关系。请补充:① 主页面入口;② 页面间如何跳转;③ 是否有弹窗/抽屉。`,
-        suggestedOptions: ['手动补充主流程', '添加原型连线后重新生成', '当前为单页应用(无需关系)'],
-      })
-    }
+    // R3-S8:输出到本地数组,不直接修改 pkg(由 recalculatePackage 显式 merge 回 interactionGraph)
+    qualityQuestions.push({
+      id: 'q_zero_inter',
+      question: `当前设计稿有 ${pageCount} 个页面,但未识别出任何关系。请补充:① 主页面入口;② 页面间如何跳转;③ 是否有弹窗/抽屉。`,
+      relatedPage: undefined,
+      relatedElement: undefined,
+      suggestedOptions: ['手动补充主流程', '添加原型连线后重新生成', '当前为单页应用(无需关系)'],
+    })
   }
 
   // 14. PRD 缺失
@@ -328,13 +330,24 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
   // 评分
   const score = calculateQualityScore(checks, issues)
 
-  // 未解决问题(来自 InteractionGraph)
-  const unresolvedQuestions = pkg.interactionGraph.unresolvedQuestions.map(q => ({
+  // 未解决问题:已有的(来自 interactionGraph)+ 质量层新生成的(去重)
+  // R3-S8:纯函数 —— 只读 pkg,不修改;返回合并结果供 recalculate 决定如何回写
+  const existing = pkg.interactionGraph.unresolvedQuestions.map(q => ({
+    id: q.id,
     question: q.question,
     relatedPage: q.relatedPage,
     relatedElement: q.relatedElement,
     suggestedOptions: q.suggestedOptions,
   }))
+  const seenIds = new Set(existing.map(q => q.id))
+  const merged = [...existing]
+  for (const q of qualityQuestions) {
+    if (!seenIds.has(q.id)) {
+      seenIds.add(q.id)
+      merged.push(q)
+    }
+  }
+  const unresolvedQuestions = merged
 
   // 建议
   const suggestions: string[] = []
