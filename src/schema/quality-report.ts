@@ -19,6 +19,15 @@ export interface QualityIssue {
 export interface QualityReport {
   score: number                 // 0–100,综合评分
 
+  // R3-S13:分项评分(每项 0–100,便于用户理解扣分原因)
+  dimensions?: {
+    dataCompleteness: number    // 数据完整度(DSL/HTML/截图)
+    pageConfirmation: number    // 页面确认度(类型确认/入口页)
+    interactionCompleteness: number // 交互完整度(关系数量/确认率)
+    prdCompleteness: number     // PRD 完整度
+    exportReadiness: number     // 导出可用性(blocking 问题)
+  }
+
   // 16 项检查结果(PRD §14.1)
   checks: {
     hasUnnamedPages: boolean              // 是否存在未命名页面

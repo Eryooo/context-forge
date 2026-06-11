@@ -357,8 +357,61 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
   if (warnings.length > 5) suggestions.push('建议逐条检查警告项,提升数据包质量。')
   if (unresolvedQuestions.length > 0) suggestions.push(`存在 ${unresolvedQuestions.length} 个待确认问题,建议在页面流程确认页逐条处理。`)
 
+  // R3-S13:分项评分(0–100)
+  const allPages = pkg.pageList.pages
+  const realPages = allPages.filter(p => p.pageType !== 'component' && p.pageType !== 'unknown' && !p.excluded)
+
+  // 数据完整度:DSL/HTML/截图 成功率
+  const dataScore = realPages.length === 0 ? 100 : Math.round(
+    realPages.reduce((acc, p) => {
+      let s = 0
+      if (p.dslStatus === 'success') s += 1
+      else if (p.dslStatus === 'fallback') s += 0.6
+      if (p.screenshotStatus === 'success') s += 1
+      if (p.htmlStatus === 'success') s += 0.5
+      return acc + s / 2.5
+    }, 0) / realPages.length * 100
+  )
+
+  // 页面确认度:userConfirmed 比例 + 是否有入口页
+  const confirmedPages = allPages.filter(p => p.userConfirmed || p.isEntryPage).length
+  const hasEntry = !!pkg.pageGraph.entryPage
+  const pageConfScore = Math.round(
+    (allPages.length === 0 ? 0 : confirmedPages / allPages.length * 70) + (hasEntry ? 30 : 0)
+  )
+
+  // 交互完整度:页面>1 且交互=0 → 极低分
+  let interactionScore: number
+  if (pageCount > 1 && interactionCount === 0) {
+    interactionScore = 10
+  } else if (interactionCount === 0) {
+    interactionScore = 60 // 单页应用,无关系正常
+  } else {
+    const confirmedRate = pkg.interactionGraph.userConfirmedCount / interactionCount
+    interactionScore = Math.round(50 + confirmedRate * 50)
+  }
+
+  // PRD 完整度
+  const prdScore = !pkg.prdContext ? 0 : Math.round(
+    (pkg.prdContext.summary ? 40 : 0) +
+    ((pkg.prdContext.businessRules?.length || 0) > 0 ? 30 : 0) +
+    ((pkg.prdContext.acceptanceCriteria?.length || 0) > 0 ? 30 : 0)
+  )
+
+  // 导出可用性:blocking 越多越低
+  const exportScore = Math.max(0, 100 - blockingIssues.length * 34)
+
+  const dimensions = {
+    dataCompleteness: dataScore,
+    pageConfirmation: pageConfScore,
+    interactionCompleteness: interactionScore,
+    prdCompleteness: prdScore,
+    exportReadiness: exportScore,
+  }
+
   return {
     score,
+    dimensions,
     checks,
     blockingIssues,
     warnings,

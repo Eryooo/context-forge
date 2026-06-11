@@ -355,6 +355,32 @@ function App() {
               <div className="score-num">{pkg.qualityReport.score}</div>
               <div className="score-label">/100</div>
             </div>
+            {/* R3-S13:分项评分 */}
+            {pkg.qualityReport.dimensions && (
+              <div className="quality-dimensions">
+                {([
+                  ['数据完整度', pkg.qualityReport.dimensions.dataCompleteness],
+                  ['页面确认度', pkg.qualityReport.dimensions.pageConfirmation],
+                  ['交互完整度', pkg.qualityReport.dimensions.interactionCompleteness],
+                  ['PRD 完整度', pkg.qualityReport.dimensions.prdCompleteness],
+                  ['导出可用性', pkg.qualityReport.dimensions.exportReadiness],
+                ] as [string, number][]).map(([label, val]) => (
+                  <div key={label} className="dim-row">
+                    <span className="dim-label">{label}</span>
+                    <div className="dim-bar">
+                      <div
+                        className="dim-fill"
+                        style={{
+                          width: `${val}%`,
+                          background: val >= 70 ? 'var(--success,#22a06b)' : val >= 40 ? 'var(--warning,#d97706)' : 'var(--error,#e5484d)',
+                        }}
+                      />
+                    </div>
+                    <span className="dim-val">{val}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {pkg.qualityReport.blockingIssues.length > 0 && (
               <div className="quality-section">
                 <h3>阻断性问题 ({pkg.qualityReport.blockingIssues.length})</h3>
