@@ -27,6 +27,15 @@ export function generatePrompt(pkg: AIContextPackage, options?: ExportOptions): 
   sections.push('你的任务是**基于该数据包生成完整可运行的交互 Demo**。')
   sections.push('')
 
+  // R3-S12:目标工具专用使用说明
+  const toolGuide = getTargetToolGuide(pkg.aiExecutionInstruction.targetTool)
+  if (toolGuide) {
+    sections.push(`## 面向 ${toolGuide.name} 的使用说明`)
+    sections.push('')
+    toolGuide.lines.forEach(l => sections.push(l))
+    sections.push('')
+  }
+
   // § 1. 任务目标
   sections.push('# 任务目标')
   sections.push('')
@@ -349,5 +358,48 @@ export function exportPackage(pkg: AIContextPackage, options: ExportOptions): st
       return exportMarkdown(pkg, options)
     default:
       throw new Error(`Unsupported format: ${options.format}`)
+  }
+}
+
+// ========== R3-S12:目标工具专用使用说明 ==========
+function getTargetToolGuide(
+  targetTool: AIContextPackage['aiExecutionInstruction']['targetTool']
+): { name: string; lines: string[] } | null {
+  switch (targetTool) {
+    case 'claude_code':
+      return {
+        name: 'Claude Code',
+        lines: [
+          '- 建议将本数据包(JSON)保存为项目文件,Claude Code 可直接读取 assets.pages 中的 DSL/HTML/截图。',
+          '- 按 pageGraph.mainFlow 顺序逐页生成,生成后用 quality-report 的检查清单自检。',
+          '- 优先实现已确认的交互关系(confirmedByUser=true),低置信度关系以 TODO 标注。',
+        ],
+      }
+    case 'codex':
+      return {
+        name: 'Codex',
+        lines: [
+          '- 明确输出文件边界:每个页面一个文件,组件复用提取为公共模块。',
+          '- 严格按 interactions 实现页面跳转,不要臆造数据包中不存在的页面。',
+        ],
+      }
+    case 'cursor':
+      return {
+        name: 'Cursor',
+        lines: [
+          '- 建议结合 JSON 数据包 + README 使用,assets.pages 含完整 DSL/截图。',
+          '- 可在编辑器内逐页生成,边生成边参考截图比对视觉还原度。',
+        ],
+      }
+    case 'chatgpt':
+      return {
+        name: 'ChatGPT',
+        lines: [
+          '- 本 Prompt 已是 Markdown 格式,可直接粘贴。',
+          '- 完整 DSL/截图在 JSON 数据包的 assets.pages,如需高保真请一并提供 JSON。',
+        ],
+      }
+    default:
+      return null
   }
 }

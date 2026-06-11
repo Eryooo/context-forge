@@ -39,6 +39,9 @@ function App() {
   const [prdContext, setPrdContext] = useState<PRDContext | null>(null)
   const [includeRawPRD, setIncludeRawPRD] = useState(false)
 
+  // R3-S12:导出目标工具
+  const [targetTool, setTargetTool] = useState<'claude_code' | 'codex' | 'cursor' | 'chatgpt' | 'generic'>('claude_code')
+
   // AI 设置
   const [aiSettings, setAiSettings] = useState<AISettings | null>(null)
 
@@ -146,17 +149,24 @@ function App() {
     if (!pkg) return
     setError(null)
     setExportResult(null)
-    // R3-S1:导出当前已确认的 pkg,不重新生成
+    // R3-S1+S12:导出当前已确认的 pkg(写入用户选择的目标工具),不重新生成
+    const pkgWithTarget: AIContextPackage = {
+      ...pkg,
+      aiExecutionInstruction: {
+        ...pkg.aiExecutionInstruction,
+        targetTool,
+      },
+    }
     sendMsgToPlugin({
       type: UIMessage.EXPORT_CURRENT_PACKAGE,
       data: {
-        pkg,              // 当前用户已确认/修改后的 pkg
+        pkg: pkgWithTarget,
         format,
         includeRawPRD,
-        targetTool: 'generic', // R3-S12 会让用户选择,暂时先 generic
+        targetTool,
       },
     })
-  }, [pkg, includeRawPRD])
+  }, [pkg, includeRawPRD, targetTool])
 
   const savePRDDraft = useCallback((draft: PRDContext) => {
     sendMsgToPlugin({ type: UIMessage.SAVE_PRD_DRAFT, data: draft })
@@ -378,6 +388,17 @@ function App() {
         {currentStep === 'export' && pkg && (
           <div className="step-export">
             <h2>导出数据包</h2>
+            {/* R3-S12:目标工具选择 */}
+            <div className="form-group">
+              <label>目标 AI 工具</label>
+              <select value={targetTool} onChange={(e) => setTargetTool(e.target.value as any)}>
+                <option value="claude_code">Claude Code</option>
+                <option value="codex">Codex</option>
+                <option value="cursor">Cursor</option>
+                <option value="chatgpt">ChatGPT</option>
+                <option value="generic">通用 / Generic</option>
+              </select>
+            </div>
             <div className="export-options">
               <button onClick={() => exportAs('json')}>导出 JSON</button>
               <button onClick={() => exportAs('prompt')}>导出 Prompt</button>
