@@ -14,9 +14,11 @@ import { createStableInteractionId } from '@modules/utils/stable-id'
 interface Props {
   pkg: AIContextPackage
   onResolve: (updatedInteractions: Interaction[]) => void
+  // R3.1-3:标记问题"无需处理"(记入 dismissedQuestionIds,不再反复出现)
+  onDismiss?: (questionId: string) => void
 }
 
-export function UnresolvedQuestionResolver({ pkg, onResolve }: Props) {
+export function UnresolvedQuestionResolver({ pkg, onResolve, onDismiss }: Props) {
   const questions = pkg.interactionGraph.unresolvedQuestions || []
   const activePages = pkg.pageList.pages.filter(p => !p.excluded)
   const pageName = (id?: string) => pkg.pageList.pages.find(p => p.pageId === id)?.pageName || id || '?'
@@ -92,15 +94,14 @@ export function UnresolvedQuestionResolver({ pkg, onResolve }: Props) {
     onResolve(interactions)
   }
 
-  // 标记无需处理:若关联了关系则删除该关系(从队列移除由 recalculate 完成);否则什么都不做但提示
+  // 标记无需处理:
+  // - 关联了关系 → 删除该不确定关系
+  // - 无关联(如 q_zero_inter)→ 记入 dismissedQuestionIds,质量层不再反复生成
   const dismiss = (q: typeof questions[number]) => {
     if (q.relatedInteractionId) {
-      // 删除该不确定关系
       onResolve(pkg.interactionGraph.interactions.filter(i => i.id !== q.relatedInteractionId))
-    } else {
-      // 无关联关系的问题(如 zero_inter),无法通过删关系移除,提示用户用"手动新增关系"
-      // 这里不改 interactions,recalculate 会按规则重判
-      onResolve([...pkg.interactionGraph.interactions])
+    } else if (onDismiss) {
+      onDismiss(q.id)
     }
   }
 

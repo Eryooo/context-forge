@@ -80,7 +80,10 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
       }
 
       case UIMessage.EXPORT: {
-        // 业务:快速导出(生成+导出一步完成)
+        // ⚠️ R3.1-2:已废弃为默认导出路径。正式 UI 一律走 EXPORT_CURRENT_PACKAGE,
+        // 导出用户确认/编辑后的当前 pkg。本分支仅保留为「开发模式:跳过确认直接从
+        // 设计稿重新生成并导出」的显式能力,不被正式 UI 调用。会丢失用户编辑,慎用。
+        console.warn('[EXPORT] 走的是 quickExport 重新生成路径(dev only),会丢失用户编辑。正式导出应走 EXPORT_CURRENT_PACKAGE。')
         const {
           projectName,
           projectDescription,
@@ -270,7 +273,7 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
 
 // ========== 启动 ==========
 
-mg.showUI(__html__, { width: 520, height: 720 })
+mg.showUI(__html__, { width: 960, height: 760 })
 
 // 主线程日志转发到 UI(供调试面板捕获)
 // 安全:转发前必须脱敏(redactArgs),防止 apiKey/rawPRD 等泄漏到 UI/调试快照。

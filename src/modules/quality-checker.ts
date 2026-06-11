@@ -260,10 +260,12 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
 
   // 审计 A12 / 14.3(P0):页面>1 且交互=0 不可高分,强制扣分并生成 unresolvedQuestion
   // R3-S8:纯函数化 —— 不再 push 修改 pkg,改用本地数组收集质量层问题
+  // R3.1-3:用户已"无需处理"的问题(dismissedQuestionIds)不再生成
   const qualityQuestions: Array<{ id: string; question: string; relatedPage: string | undefined; relatedElement: string | undefined; suggestedOptions: string[] }> = []
+  const dismissed = new Set(pkg.interactionGraph.dismissedQuestionIds || [])
   const pageCount = pkg.pageList.pages.filter(p => p.pageType !== 'component' && p.pageType !== 'unknown').length
   const interactionCount = pkg.interactionGraph.totalInteractions
-  if (pageCount > 1 && interactionCount === 0) {
+  if (pageCount > 1 && interactionCount === 0 && !dismissed.has('q_zero_inter')) {
     issues.push({
       id: 'zero_interactions',
       severity: 'blocking',

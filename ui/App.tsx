@@ -197,6 +197,13 @@ function App() {
     setPkg(recalculated)
   }, [pkg])
 
+  // R3.1-3:用户标记问题"无需处理",记入 dismissedQuestionIds
+  const handleDismissQuestion = useCallback((questionId: string) => {
+    if (!pkg) return
+    const recalculated = recalculatePackage(pkg, { dismissQuestionId: questionId })
+    setPkg(recalculated)
+  }, [pkg])
+
   // ========== 7-Step 导航 ==========
   const steps: Array<{ key: Step; label: string }> = [
     { key: 'config', label: '配置项目' },
@@ -310,7 +317,7 @@ function App() {
         {currentStep === 'flow-confirm' && pkg && (
           <div className="step-flow-confirm">
             <h2>页面流程确认</h2>
-            <FlowConfirm pkg={pkg} onUpdate={handleInteractionEdit} />
+            <FlowConfirm pkg={pkg} onUpdate={handleInteractionEdit} onDismissQuestion={handleDismissQuestion} />
             <div className="actions">
               <button onClick={prevStep}>返回页面确认</button>
               <button className="primary" onClick={nextStep}>下一步:补充 PRD</button>

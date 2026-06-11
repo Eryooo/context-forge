@@ -15,6 +15,8 @@ import type { RelationFormState } from './relation-form'
 interface Props {
   pkg: AIContextPackage
   onUpdate: (interactions: Interaction[]) => void
+  // R3.1-3:标记问题"无需处理"(走 recalculate dismissQuestionId)
+  onDismissQuestion?: (questionId: string) => void
 }
 
 // 置信度颜色
@@ -30,7 +32,7 @@ function confLabel(conf: number): string {
   return '低'
 }
 
-export function FlowConfirm({ pkg, onUpdate }: Props) {
+export function FlowConfirm({ pkg, onUpdate, onDismissQuestion }: Props) {
   // R3-S5 修复:不再用本地 useState 缓存 interactions(pkg 重算后会脱节)。
   // 直接读 pkg,所有变更经 onUpdate 上抛触发重算,pkg 回流刷新视图。
   const interactions = pkg.interactionGraph.interactions
@@ -215,6 +217,7 @@ export function FlowConfirm({ pkg, onUpdate }: Props) {
           <UnresolvedQuestionResolver
             pkg={pkg}
             onResolve={handleQuestionResolve}
+            onDismiss={onDismissQuestion}
           />
         </section>
       )}

@@ -91,6 +91,9 @@ export interface InteractionGraph {
   interactions: Interaction[]
   unresolvedQuestions: UnresolvedQuestion[]
 
+  // R3.1-3:用户点"无需处理"标记的问题 id,质量层不再重复生成这些问题
+  dismissedQuestionIds?: string[]
+
   // 统计
   totalInteractions: number
   highConfidenceCount: number   // ≥0.85

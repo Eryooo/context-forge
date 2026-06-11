@@ -4,7 +4,7 @@
 // 改动后重算 pageList/pageGraph/interactionGraph/qualityReport。
 // ============================================================
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { PageNode } from '@schema/page-graph'
 import type { PageType } from '@schema/page-graph'
 
@@ -25,6 +25,10 @@ function groupPages(pages: PageNode[]) {
 
 export function PageReviewPanel({ pages, onChange }: Props) {
   const [localPages, setLocalPages] = useState<PageNode[]>(pages)
+  // R3.1-4:父级 pkg 重算后 pages 引用变化时同步 localPages,避免脱节
+  useEffect(() => {
+    setLocalPages(pages)
+  }, [pages])
   const groups = groupPages(localPages)
 
   const updatePage = (pageId: string, patch: Partial<PageNode>) => {

@@ -18,6 +18,7 @@ export interface RecalculateInput {
   pages?: PageNode[]              // 页面变化(改类型/重命名/入口页/排除)
   interactions?: Interaction[]    // 关系变化(确认/删除/修改/新增)
   prdContext?: PRDContext | null  // PRD 变化
+  dismissQuestionId?: string      // R3.1-3:用户"无需处理"的问题 id,加入 dismissedQuestionIds
 }
 
 /**
@@ -57,6 +58,12 @@ export function recalculatePackage(
   // 4. 重新生成规则层 unresolvedQuestions(低置信度/无目标的关系)
   const ruleQuestions = generateUnresolvedQuestions(interactions, pages)
 
+  // R3.1-3:维护 dismissedQuestionIds(并入用户本次"无需处理"的 id)
+  const dismissedQuestionIds = Array.from(new Set([
+    ...(pkg.interactionGraph.dismissedQuestionIds || []),
+    ...(input.dismissQuestionId ? [input.dismissQuestionId] : []),
+  ]))
+
   const newInteractionGraph = {
     ...pkg.interactionGraph,
     interactions,
@@ -66,6 +73,7 @@ export function recalculatePackage(
     lowConfidenceCount,
     userConfirmedCount,
     unresolvedQuestions: ruleQuestions,
+    dismissedQuestionIds,
   }
 
   // 5. collectionStats
@@ -90,10 +98,11 @@ export function recalculatePackage(
 
   // 8. R3-S8:由 recalculate 显式 merge 质量层问题到 interactionGraph.unresolvedQuestions
   //    (quality-checker 不再直接 push 修改 pkg)
+  // R3.1-3:过滤掉已 dismiss 的问题
   const mergedQuestions = mergeUnresolvedQuestions(
     ruleQuestions,
     newQualityReport.unresolvedQuestions
-  )
+  ).filter(q => !dismissedQuestionIds.includes(q.id))
 
   return {
     ...pkgToCheck,

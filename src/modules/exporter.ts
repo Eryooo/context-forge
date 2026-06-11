@@ -7,7 +7,7 @@
 import type { AIContextPackage, ExportFormat, ExportOptions } from '../schema/package-schema'
 import type { PageNode } from '../schema/page-graph'
 import type { Interaction } from '../schema/interaction'
-import { sanitizePackageForExport, applyRawPRDPolicy } from './export/sanitize'
+import { sanitizePackageForExport, applyRawPRDPolicy, stripExcludedPages } from './export/sanitize'
 
 // ========== Prompt 生成(PRD §12.2 定义的 12 节结构) ==========
 
@@ -15,6 +15,7 @@ export function generatePrompt(pkg: AIContextPackage, options?: ExportOptions): 
   // 安全:导出前脱敏(审计 P0)。Prompt 不内嵌 base64,仅说明资产位置。
   let clean = sanitizePackageForExport(pkg)
   clean = applyRawPRDPolicy(clean, options?.includeRawPRD ?? false)
+  clean = stripExcludedPages(clean) // R3.1-1:移除被排除页面
   pkg = clean
 
   const sections: string[] = []
@@ -277,6 +278,7 @@ export function exportJSON(pkg: AIContextPackage, options?: ExportOptions): stri
   // 安全:导出前脱敏(审计 P0)
   let clean = sanitizePackageForExport(pkg)
   clean = applyRawPRDPolicy(clean, options?.includeRawPRD ?? false)
+  clean = stripExcludedPages(clean) // R3.1-1:移除被排除页面
   return JSON.stringify(clean, null, 2)
 }
 
@@ -286,6 +288,7 @@ export function exportMarkdown(pkg: AIContextPackage, options?: ExportOptions): 
   // 安全:导出前脱敏(审计 P0)。Markdown 不内嵌 base64。
   let clean = sanitizePackageForExport(pkg)
   clean = applyRawPRDPolicy(clean, options?.includeRawPRD ?? false)
+  clean = stripExcludedPages(clean) // R3.1-1:移除被排除页面
   pkg = clean
 
   const md: string[] = []
