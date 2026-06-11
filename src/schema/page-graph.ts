@@ -45,6 +45,12 @@ export interface PageNode {
     keyElements: string[]  // e.g. ["新增按钮","搜索框","任务列表项"]
     hasInteraction: boolean // 是否有交互元素(按钮/输入框/链接)
     complexity: 'simple' | 'medium' | 'complex' // 页面复杂度
+    // R3-S9:深层扫描统计(button/input/table 等组件计数 + 扫描元信息)
+    componentStats?: Record<string, number>
+    scanStats?: {
+      totalNodesScanned: number
+      maxDepthReached: number
+    }
   }
 
   // 识别置信度

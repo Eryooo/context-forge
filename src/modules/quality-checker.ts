@@ -295,8 +295,10 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
     })
   }
 
-  // 15. Prompt 过长(估算 token 数,>50k 提示)
-  const estimatedTokens = estimatePromptTokens(pkg)
+  // 15. Prompt 过长(R3-S10:剥离 assets.base64 后再估,避免误报)
+  // 构造不含 base64 的精简对象估算(Prompt 实际不内嵌 base64)
+  const pkgWithoutAssets = { ...pkg, assets: undefined }
+  const estimatedTokens = estimatePromptTokens(JSON.stringify(pkgWithoutAssets))
   if (estimatedTokens > 50000) {
     checks.hasPromptTooLong = true
     issues.push({
@@ -309,8 +311,8 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
     })
   }
 
-  // 16. 数据包过大(ZIP 估算 >50MB 提示)
-  const estimatedSize = estimatePackageSize(pkg)
+  // 16. 数据包过大(R3-S10:JSON 本体 + 资产分开评估)
+  const estimatedSize = estimateJsonPackageSize(pkg) + estimateAssetSize(pkg.assets)
   if (estimatedSize > 50 * 1024 * 1024) {
     checks.hasPackageTooLarge = true
     issues.push({
@@ -367,16 +369,29 @@ export function runQualityChecks(pkg: AIContextPackage): QualityReport {
   }
 }
 
-// ========== 估算 token 数(简化版:按字符 / 3) ==========
-function estimatePromptTokens(pkg: AIContextPackage): number {
-  const jsonStr = JSON.stringify(pkg)
-  return Math.ceil(jsonStr.length / 3)
+// ========== R3-S10:体积评估(拆分,不用含 base64 的 JSON 估 Prompt)==========
+
+// 估算 Prompt token 数(基于真实 Prompt 文本,不含 base64)
+export function estimatePromptTokens(prompt: string): number {
+  // 粗略:中英文混合按 字符数/2.5 估 token
+  return Math.ceil(prompt.length / 2.5)
 }
 
-// ========== 估算数据包大小(JSON + 截图) ==========
-function estimatePackageSize(pkg: AIContextPackage): number {
-  const jsonSize = JSON.stringify(pkg).length
-  const screenshotCount = pkg.pageList.pages.filter(p => p.screenshotStatus === 'success').length
-  const avgScreenshotSize = 150 * 1024 // 假设每张截图 150KB
-  return jsonSize + screenshotCount * avgScreenshotSize
+// 估算 JSON 数据包大小(含 assets,字节)
+export function estimateJsonPackageSize(pkg: AIContextPackage): number {
+  return JSON.stringify(pkg).length
+}
+
+// 估算资产大小(仅 base64 截图,字节)
+export function estimateAssetSize(assets: AIContextPackage['assets']): number {
+  if (!assets || !assets.pages) return 0
+  let total = 0
+  for (const pageId of Object.keys(assets.pages)) {
+    const b64 = assets.pages[pageId]?.screenshotBase64
+    if (b64) {
+      // base64 解码后约为 length * 3/4 字节
+      total += Math.ceil((b64.length * 3) / 4)
+    }
+  }
+  return total
 }

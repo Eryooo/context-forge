@@ -217,6 +217,12 @@ export function generatePageSummary(node: any, nodeSummary: NodeSummary): PageNo
     keyElements: keyElements.length > 0 ? keyElements : ['未检测到明显交互元素'],
     hasInteraction,
     complexity,
+    // R3-S9:暴露深层扫描统计,供外部 AI / 质量面板使用
+    componentStats: stats,
+    scanStats: {
+      totalNodesScanned: deep.totalNodesScanned,
+      maxDepthReached: deep.maxDepthReached,
+    },
   }
 }
 
