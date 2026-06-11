@@ -403,3 +403,12 @@ button.mini.danger { color: var(--error); border-color: var(--error); }
   font-size: 12px;
   color: var(--fg-sub);
 }
+
+/* ===== R3-S2: PageReviewPanel 入口页/排除 ===== */
+.page-card { border: 1px solid var(--border, #e0e0e0); border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+.page-card.entry { border-color: var(--primary, #2d7ff9); background: rgba(45,127,249,0.04); }
+.page-card.excluded { opacity: 0.5; border-style: dashed; }
+.page-card .entry-badge { font-size: 11px; color: #fff; background: var(--primary, #2d7ff9); padding: 1px 6px; border-radius: 3px; margin-left: 6px; }
+.page-card .page-actions { display: flex; gap: 8px; margin-top: 8px; }
+.page-card .mini.active { background: var(--primary, #2d7ff9); color: #fff; }
+.page-card .mini:disabled { opacity: 0.4; cursor: not-allowed; }

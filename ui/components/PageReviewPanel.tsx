@@ -33,14 +33,36 @@ export function PageReviewPanel({ pages, onChange }: Props) {
     onChange(updated) // 触发重算
   }
 
+  // R3-S2:设为入口页(单选,设一个则清空其他)
+  const setEntryPage = (pageId: string) => {
+    const target = localPages.find(p => p.pageId === pageId)
+    const willBeEntry = !target?.isEntryPage // 切换
+    const updated = localPages.map(p => ({
+      ...p,
+      isEntryPage: p.pageId === pageId ? willBeEntry : false, // 仅当前页可为 true,其他清空
+    }))
+    setLocalPages(updated)
+    onChange(updated)
+  }
+
+  // R3-S2:排除 / 恢复页面
+  const toggleExcluded = (pageId: string) => {
+    const updated = localPages.map(p =>
+      p.pageId === pageId ? { ...p, excluded: !p.excluded } : p
+    )
+    setLocalPages(updated)
+    onChange(updated)
+  }
+
   const renderPageCard = (page: PageNode) => (
-    <div key={page.pageId} className="page-card">
+    <div key={page.pageId} className={`page-card ${page.excluded ? 'excluded' : ''} ${page.isEntryPage ? 'entry' : ''}`}>
       <div className="page-head">
         <input
           className="page-name-edit"
           value={page.pageName}
           onChange={(e) => updatePage(page.pageId, { pageName: e.target.value })}
         />
+        {page.isEntryPage && <span className="entry-badge">入口</span>}
         <span className="page-conf">{(page.typeConfidence * 100).toFixed(0)}%</span>
       </div>
       <div className="page-meta">
@@ -70,13 +92,18 @@ export function PageReviewPanel({ pages, onChange }: Props) {
         </label>
       </div>
       <div className="page-actions">
-        {/* 设入口页/排除功能需扩展 PageNode schema,S13 统一处理 */}
-        {/* <button className="mini" onClick={() => updatePage(page.pageId, { isEntryPage: !page.isEntryPage })}>
+        {/* R3-S2:设入口页(单选)/ 排除(恢复)*/}
+        <button
+          className={`mini ${page.isEntryPage ? 'active' : ''}`}
+          onClick={() => setEntryPage(page.pageId)}
+          disabled={page.excluded}
+          title={page.excluded ? '已排除的页面不能设为入口页' : ''}
+        >
           {page.isEntryPage ? '✓ 入口页' : '设为入口页'}
         </button>
-        <button className="mini" onClick={() => updatePage(page.pageId, { excluded: !page.excluded })}>
+        <button className="mini" onClick={() => toggleExcluded(page.pageId)}>
           {page.excluded ? '恢复' : '排除'}
-        </button> */}
+        </button>
       </div>
     </div>
   )

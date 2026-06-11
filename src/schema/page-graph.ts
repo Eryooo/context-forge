@@ -53,6 +53,10 @@ export interface PageNode {
   // 用户修改标记
   userConfirmed: boolean   // 用户是否手动确认过
   userModified: boolean    // 用户是否改过类型/名称
+
+  // R3-S2:入口页 / 排除标记(用户在 PageReviewPanel 设置)
+  isEntryPage?: boolean    // 用户手动设为入口页(优先于自动 identifyEntryPage)
+  excluded?: boolean       // 用户排除该页面(不进 mainFlow / interaction target / 导出 pages)
 }
 
 // 页面分组(主页面 vs 浮层 vs 状态 vs 未归属)
