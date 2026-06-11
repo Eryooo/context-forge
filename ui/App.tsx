@@ -55,6 +55,10 @@ function App() {
 
   const [toast, setToast] = useState('')
 
+  // R3.1:调试面板(可折叠,默认收起)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [codegenProbeResult, setCodegenProbeResult] = useState<any>(null)
+
   const showToast = (s: string) => {
     setToast(s)
     window.setTimeout(() => setToast(''), 2200)
@@ -114,6 +118,10 @@ function App() {
           if (msg.data) {
             pushMainLog(msg.data.level || 'log', msg.data.args || [])
           }
+          break
+        case PluginMessage.CODEGEN_PROBE_RESULT:
+          setCodegenProbeResult(msg.data)
+          showToast('DevMode codegen 探测完成')
           break
         default:
           break
@@ -203,6 +211,27 @@ function App() {
     const recalculated = recalculatePackage(pkg, { dismissQuestionId: questionId })
     setPkg(recalculated)
   }, [pkg])
+
+  // R3.1:调试 —— 复制诊断快照(主线程日志+环境+原始消息结构)
+  const copyDiagSnapshot = useCallback(() => {
+    const snap = getDiagSnapshot()
+    const text = JSON.stringify(snap, null, 2)
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => showToast('诊断快照已复制 ✓'),
+        () => showToast('复制失败,见下方文本框')
+      )
+    }
+    setToast('诊断快照已生成')
+    // 兜底:也放进 exportResult 文本框便于手动复制
+    setExportResult({ format: 'diag', content: text })
+  }, [])
+
+  // R3.1:调试 —— 运行 DevMode codegen 探测
+  const runCodegenProbe = useCallback(() => {
+    setCodegenProbeResult(null)
+    sendMsgToPlugin({ type: UIMessage.RUN_CODEGEN_PROBE })
+  }, [])
 
   // ========== 流程导航(8 阶段)==========
   const steps: Array<{ key: Step; label: string }> = [
@@ -476,6 +505,24 @@ function App() {
               <button onClick={prevStep}>返回质量预览</button>
               <button className="primary" onClick={() => setCurrentStep('config')}>重新开始</button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* R3.1:调试面板(可折叠,默认收起,开发用)*/}
+      <div className="debug-panel">
+        <div className="debug-toggle" onClick={() => setDebugOpen(!debugOpen)}>
+          🔧 调试面板 {debugOpen ? '▾' : '▸'}
+        </div>
+        {debugOpen && (
+          <div className="debug-content">
+            <div className="debug-actions">
+              <button className="mini" onClick={copyDiagSnapshot}>复制诊断快照</button>
+              <button className="mini" onClick={runCodegenProbe}>运行 DevMode codegen 探测</button>
+            </div>
+            {codegenProbeResult && (
+              <pre className="debug-probe">{JSON.stringify(codegenProbeResult, null, 2)}</pre>
+            )}
           </div>
         )}
       </div>

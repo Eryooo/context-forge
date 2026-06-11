@@ -658,3 +658,11 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* --- UnresolvedQuestionResolver --- */
 .question-resolver { display: flex; flex-direction: column; gap: 10px; }
+
+/* --- R3.1:调试面板 --- */
+.debug-panel { border-top: 1px solid var(--border); background: var(--panel); flex-shrink: 0; }
+.debug-toggle { padding: 6px 16px; font-size: 12px; color: var(--fg-sub); cursor: pointer; user-select: none; }
+.debug-toggle:hover { color: var(--fg); }
+.debug-content { padding: 8px 16px 12px; }
+.debug-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.debug-probe { margin-top: 8px; max-height: 200px; overflow: auto; font-size: 11px; font-family: monospace; padding: 8px; background: var(--pre-bg); border-radius: 4px; white-space: pre-wrap; }
