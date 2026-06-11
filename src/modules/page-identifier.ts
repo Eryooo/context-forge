@@ -5,6 +5,7 @@
 
 import type { PageType, PageNode } from '../schema/page-graph'
 import type { NodeSummary } from './collector'
+import { scanDeep } from './identify/deep-summary'
 
 // ========== 命名规则(PRD §9.5) ==========
 
@@ -177,35 +178,38 @@ export function generatePageSummary(node: any, nodeSummary: NodeSummary): PageNo
     layout = nodeSummary.flexMode === 'HORIZONTAL' ? '横向布局(AutoLayout)' : '纵向布局(AutoLayout)'
   }
 
-  // 主区域(简化版:找顶层子节点)
-  const mainRegions: string[] = []
+  // 审计 A8/9.5:深层扫描(maxDepth6/maxNodes1000),替代原单层 node.children 扫描
+  const deep = scanDeep(node, 6, 1000)
   const children = (node.children || []) as any[]
-  if (children.length > 0) {
-    children.slice(0, 5).forEach((c: any) => {
-      if (c.name) mainRegions.push(c.name)
-    })
+
+  // 主区域:优先用深层扫描识别的区域,兜底用顶层子节点名
+  let mainRegions: string[] = deep.mainRegions
+  if (mainRegions.length === 0 && children.length > 0) {
+    mainRegions = children.slice(0, 5).map((c: any) => c.name).filter(Boolean)
   }
 
-  // 关键元素(按钮/输入框/文本)
+  // 关键元素:用深层扫描的组件统计(button/input/table/list/...),比原来只数顶层更准
   const keyElements: string[] = []
-  const buttons = children.filter((c: any) => {
-    const n = (c.name || '').toLowerCase()
-    return n.includes('按钮') || n.includes('button') || n.includes('btn')
+  const stats = deep.componentStats
+  const labelMap: Record<string, string> = {
+    button: '按钮', input: '输入框', search: '搜索框', table: '表格', list: '列表',
+    card: '卡片', form: '表单', tab: '标签页', modal: '弹窗', drawer: '抽屉',
+    pagination: '分页', checkbox: '复选框', radio: '单选框', select: '下拉框',
+    dropdown: '下拉菜单', menu: '菜单', link: '链接', switch: '开关',
+  }
+  Object.entries(stats).forEach(([type, count]) => {
+    const label = labelMap[type] || type
+    keyElements.push(`${count} 个${label}`)
   })
-  const inputs = children.filter((c: any) => {
-    const n = (c.name || '').toLowerCase()
-    return n.includes('输入') || n.includes('input') || n.includes('搜索') || n.includes('search')
-  })
-  if (buttons.length > 0) keyElements.push(`${buttons.length} 个按钮`)
-  if (inputs.length > 0) keyElements.push(`${inputs.length} 个输入框`)
 
-  // 交互元素检测
-  const hasInteraction = buttons.length > 0 || inputs.length > 0
+  // 交互元素检测:有 button/input/link/select 等即视为有交互
+  const hasInteraction = !!(stats.button || stats.input || stats.link || stats.select || stats.tab || stats.search)
 
-  // 复杂度(简单:子节点<10;中等:10–50;复杂:>50)
+  // 复杂度:用深层扫描的总节点数(比顶层 children 数更真实)
+  const totalNodes = deep.totalNodesScanned
   let complexity: 'simple' | 'medium' | 'complex' = 'simple'
-  if (children.length > 50) complexity = 'complex'
-  else if (children.length > 10) complexity = 'medium'
+  if (totalNodes > 100) complexity = 'complex'
+  else if (totalNodes > 30) complexity = 'medium'
 
   return {
     layout,
