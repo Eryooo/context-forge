@@ -5,7 +5,7 @@
 
 import { sendMsgToUI, PluginMessage, UIMessage } from '@messages/sender'
 import type { EnvInfo } from '@messages/sender'
-import { quickExport, generateAIContextPackage } from '@modules/orchestrator'
+import { generateAIContextPackage } from '@modules/orchestrator'
 import { redactArgs } from '@modules/security/redact'
 import type { AISettings } from '@schema/ai-settings'
 import type { PRDContext } from '@schema/package-schema'
@@ -38,15 +38,6 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
 
   try {
     switch (msg.type) {
-      case UIMessage.PING: {
-        // 调试:通信往返测试
-        sendMsgToUI({
-          type: PluginMessage.PONG,
-          data: { echo: msg.data, mainReceivedAt: Date.now() },
-        })
-        break
-      }
-
       case UIMessage.GENERATE_PACKAGE: {
         // 业务:生成 AI 数据包
         const {
@@ -75,42 +66,6 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
         sendMsgToUI({
           type: PluginMessage.PACKAGE_GENERATED,
           data: pkg,
-        })
-        break
-      }
-
-      case UIMessage.EXPORT: {
-        // ⚠️ R3.1-2:已废弃为默认导出路径。正式 UI 一律走 EXPORT_CURRENT_PACKAGE,
-        // 导出用户确认/编辑后的当前 pkg。本分支仅保留为「开发模式:跳过确认直接从
-        // 设计稿重新生成并导出」的显式能力,不被正式 UI 调用。会丢失用户编辑,慎用。
-        console.warn('[EXPORT] 走的是 quickExport 重新生成路径(dev only),会丢失用户编辑。正式导出应走 EXPORT_CURRENT_PACKAGE。')
-        const {
-          projectName,
-          projectDescription,
-          exportMode,
-          format,
-          aiSettings,
-          prdContext,
-        } = msg.data
-
-        const result = await quickExport(
-          projectName,
-          projectDescription,
-          exportMode,
-          format,
-          aiSettings,
-          prdContext,
-          (phase, current, total, message) => {
-            sendMsgToUI({
-              type: PluginMessage.PROGRESS,
-              data: { phase, current, total, message },
-            })
-          }
-        )
-
-        sendMsgToUI({
-          type: PluginMessage.EXPORT_DONE,
-          data: { format, content: result },
         })
         break
       }
@@ -206,20 +161,6 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
         sendMsgToUI({
           type: PluginMessage.PRD_DRAFT_SAVED,
           data: { success: true },
-        })
-        break
-      }
-
-      case UIMessage.RUN_PROBES: {
-        // 调试:运行 API 探测(保留 probe 功能,供调试用)
-        // 这里简化版,只上报环境信息
-        // 完整 probe 逻辑已在 Step 1 验证过,此处不再重复
-        sendMsgToUI({
-          type: PluginMessage.PROBE_RESULTS,
-          data: {
-            message: 'Probe 功能已简化,主要 API 能力已在 Step 1 验证通过。',
-            env: collectEnvInfo(),
-          },
         })
         break
       }

@@ -37,7 +37,6 @@ export interface EnvInfo {
 export enum UIMessage {
   // 业务消息
   GENERATE_PACKAGE = 'GENERATE_PACKAGE',   // 生成数据包
-  EXPORT = 'EXPORT',                       // 快速导出(生成+导出,跳过确认)
   EXPORT_CURRENT_PACKAGE = 'EXPORT_CURRENT_PACKAGE', // R3-S1:导出当前已确认的 pkg(不重新生成)
   LOAD_SETTINGS = 'LOAD_SETTINGS',         // 加载 AI 设置
   SAVE_SETTINGS = 'SAVE_SETTINGS',         // 保存 AI 设置
@@ -47,10 +46,8 @@ export enum UIMessage {
   LOAD_PRD_DRAFT = 'LOAD_PRD_DRAFT',       // 加载 PRD 草稿
   SAVE_PRD_DRAFT = 'SAVE_PRD_DRAFT',       // 保存 PRD 草稿(不含 rawPRD)
 
-  // 调试消息(保留)
-  RUN_PROBES = 'RUN_PROBES',
+  // 调试消息
   RUN_CODEGEN_PROBE = 'RUN_CODEGEN_PROBE', // DevMode codegen 实测
-  PING = 'PING',
 }
 
 // ========== 主线程 → UI 消息 ==========
@@ -71,9 +68,7 @@ export enum PluginMessage {
   CODEGEN_PROBE_RESULT = 'CODEGEN_PROBE_RESULT', // DevMode codegen 实测结果
   ERROR = 'ERROR',                         // 错误
 
-  // 调试消息(保留)
-  PROBE_RESULTS = 'PROBE_RESULTS',
-  PONG = 'PONG',
+  // 调试消息
   LOG = 'LOG',                              // 主线程日志转发(调试用)
 }
 

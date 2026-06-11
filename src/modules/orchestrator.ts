@@ -408,33 +408,3 @@ export async function generateAIContextPackage(
 
   return pkg
 }
-
-// ========== 快捷导出(生成数据包 + 立刻导出为指定格式) ==========
-
-export async function quickExport(
-  projectName: string,
-  projectDescription: string,
-  exportMode: ExportMode,
-  format: 'prompt' | 'json' | 'markdown',
-  aiSettings?: AISettings,
-  prdContext?: any,
-  onProgress?: ProgressCallback
-): Promise<string> {
-  const pkg = await generateAIContextPackage(
-    projectName,
-    projectDescription,
-    exportMode,
-    aiSettings,
-    prdContext,
-    onProgress
-  )
-
-  const options: ExportOptions = {
-    format,
-    includePRD: !!prdContext,
-    includeScreenshots: true,
-    compressPrompt: false,
-  }
-
-  return exportPackage(pkg, options)
-}
