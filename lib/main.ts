@@ -112,6 +112,30 @@ mg.ui.onmessage = async (msg: { type: UIMessage; data?: any }) => {
         break
       }
 
+      case UIMessage.EXPORT_CURRENT_PACKAGE: {
+        // R3-S1:导出当前已确认的 pkg(不重新生成,不丢用户编辑)
+        const { pkg, format, includeRawPRD, targetTool } = msg.data
+
+        const { exportPackage } = await import('@modules/exporter')
+
+        // exportPackage 内部已统一做 sanitizePackageForExport + applyRawPRDPolicy(审计 P0)
+        // 这里只需把当前 pkg + 用户选项传入,不重新读设计稿、不重新识别
+        const result = exportPackage(pkg, {
+          format: format as 'prompt' | 'json' | 'markdown',
+          includePRD: true,
+          includeRawPRD: includeRawPRD || false,
+          includeScreenshots: true,
+          compressPrompt: false,
+          targetTool: targetTool || 'generic',
+        })
+
+        sendMsgToUI({
+          type: PluginMessage.EXPORT_DONE,
+          data: { format, content: result },
+        })
+        break
+      }
+
       case UIMessage.LOAD_SETTINGS: {
         // 加载 AI 设置(从 clientStorage)
         const settings = await mg.clientStorage.getAsync('ai_settings')

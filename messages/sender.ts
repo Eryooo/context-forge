@@ -37,7 +37,8 @@ export interface EnvInfo {
 export enum UIMessage {
   // 业务消息
   GENERATE_PACKAGE = 'GENERATE_PACKAGE',   // 生成数据包
-  EXPORT = 'EXPORT',                       // 快速导出(生成+导出)
+  EXPORT = 'EXPORT',                       // 快速导出(生成+导出,跳过确认)
+  EXPORT_CURRENT_PACKAGE = 'EXPORT_CURRENT_PACKAGE', // R3-S1:导出当前已确认的 pkg(不重新生成)
   LOAD_SETTINGS = 'LOAD_SETTINGS',         // 加载 AI 设置
   SAVE_SETTINGS = 'SAVE_SETTINGS',         // 保存 AI 设置
   CLEAR_SETTINGS = 'CLEAR_SETTINGS',       // 清除 AI Key

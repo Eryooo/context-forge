@@ -146,19 +146,17 @@ function App() {
     if (!pkg) return
     setError(null)
     setExportResult(null)
+    // R3-S1:导出当前已确认的 pkg,不重新生成
     sendMsgToPlugin({
-      type: UIMessage.EXPORT,
+      type: UIMessage.EXPORT_CURRENT_PACKAGE,
       data: {
-        projectName,
-        projectDescription: projectDesc,
-        exportMode,
+        pkg,              // 当前用户已确认/修改后的 pkg
         format,
-        aiSettings,
-        prdContext,
         includeRawPRD,
+        targetTool: 'generic', // R3-S12 会让用户选择,暂时先 generic
       },
     })
-  }, [projectName, projectDesc, exportMode, aiSettings, prdContext, pkg, includeRawPRD])
+  }, [pkg, includeRawPRD])
 
   const savePRDDraft = useCallback((draft: PRDContext) => {
     sendMsgToPlugin({ type: UIMessage.SAVE_PRD_DRAFT, data: draft })
