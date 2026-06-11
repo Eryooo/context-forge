@@ -20,7 +20,7 @@ import { FlowConfirm } from './components/FlowConfirm'
 import { PRDPanel } from './components/PRDPanel'
 import { AISettingsPanel } from './components/AISettingsPanel'
 import { PageReviewPanel } from './components/PageReviewPanel'
-import { recalculatePackageAfterUserEdit } from '@modules/package/recalculate'
+import { recalculatePackage } from '@modules/package/recalculate'
 
 // 7-Step 流程(审计 P0(UX) / 10.2)
 type Step = 'config' | 'identifying' | 'page-review' | 'flow-confirm' | 'prd' | 'ai-settings' | 'quality' | 'export'
@@ -171,18 +171,17 @@ function App() {
     sendMsgToPlugin({ type: UIMessage.CLEAR_SETTINGS })
   }, [])
 
-  // 用户编辑页面后重算
+  // 用户编辑页面后重算(R3-S4:完整重建 pageGraph)
   const handlePageEdit = useCallback((pages: PageNode[]) => {
     if (!pkg) return
-    const updated = { ...pkg, pageList: { pages } }
-    const recalculated = recalculatePackageAfterUserEdit(updated, pkg.interactionGraph.interactions)
+    const recalculated = recalculatePackage(pkg, { pages })
     setPkg(recalculated)
   }, [pkg])
 
   // 用户编辑关系后重算
   const handleInteractionEdit = useCallback((interactions: Interaction[]) => {
     if (!pkg) return
-    const recalculated = recalculatePackageAfterUserEdit(pkg, interactions)
+    const recalculated = recalculatePackage(pkg, { interactions })
     setPkg(recalculated)
   }, [pkg])
 

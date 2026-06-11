@@ -1,102 +1,144 @@
 // ============================================================
-// 用户编辑后质量重算(审计 P0 / 8.4)
-// 用户确认/删除/修改关系、改页面类型/排除页面/改入口页后,必须重算:
-// - interactionGraph 的 counts
-// - unresolvedQuestions
-// - pageGraph.pageGroups(挂载关系)
-// - qualityReport
-// - collectionStats.interactionsConfirmed
+// R3-S4: recalculatePackage — 用户编辑后完整重算数据包
+// 审计 P0-7:替换旧 recalculatePackageAfterUserEdit。
+// 支持页面/关系/PRD 任一变化,完整重建 pageGraph(用 rebuildPageGraph),
+// 重算 interactionGraph / qualityReport / collectionStats。
+// 禁止只局部更新 pageGroups。
 // ============================================================
 
 import type { AIContextPackage } from '@schema/package-schema'
 import type { Interaction } from '@schema/interaction'
+import type { PageNode } from '@schema/page-graph'
+import type { PRDContext } from '@schema/package-schema'
 import { runQualityChecks } from '../quality-checker'
 import { generateUnresolvedQuestions } from '../relation-inference'
+import { rebuildPageGraph } from '../page-graph/rebuild'
+
+export interface RecalculateInput {
+  pages?: PageNode[]              // 页面变化(改类型/重命名/入口页/排除)
+  interactions?: Interaction[]    // 关系变化(确认/删除/修改/新增)
+  prdContext?: PRDContext | null  // PRD 变化
+}
 
 /**
- * 用户编辑后重算数据包(P0)。
- * 入参: pkg(当前数据包), updatedInteractions(用户编辑后的新 interactions)。
- * 返回: 更新后的完整数据包(不修改原 pkg)。
+ * 用户编辑后完整重算数据包(纯函数,不修改入参)。
  *
- * 必须重算的内容:
- * - interactionGraph.interactions / totalInteractions / high/medium/low/userConfirmed count
- * - interactionGraph.unresolvedQuestions
- * - pageGraph.pageGroups(挂载关系受交互影响)
- * - qualityReport(重新运行全检)
+ * @param pkg 当前数据包
+ * @param input 变化的部分(pages / interactions / prdContext 任一或多个)
+ * @returns 完整重算后的新数据包
+ *
+ * 重算内容:
+ * - pageList(若 pages 变化)
+ * - prdContext(若 prdContext 变化)
+ * - pageGraph(完整重建,经 rebuildPageGraph)
+ * - interactionGraph(counts + unresolvedQuestions)
  * - collectionStats.interactionsConfirmed
+ * - qualityReport(重新全检)
  */
-export function recalculatePackageAfterUserEdit(
+export function recalculatePackage(
   pkg: AIContextPackage,
-  updatedInteractions: Interaction[]
+  input: RecalculateInput
 ): AIContextPackage {
-  // 重算 interactionGraph counts
-  const totalInteractions = updatedInteractions.length
-  const highConfidenceCount = updatedInteractions.filter(i => i.confidence >= 0.85).length
-  const mediumConfidenceCount = updatedInteractions.filter(i => i.confidence >= 0.6 && i.confidence < 0.85).length
-  const lowConfidenceCount = updatedInteractions.filter(i => i.confidence < 0.6).length
-  const userConfirmedCount = updatedInteractions.filter(i => i.confirmedByUser).length
+  // 1. 解析最新的 pages / interactions / prd(变化的用新值,未变的用原值)
+  const pages = input.pages ?? pkg.pageList.pages
+  const interactions = input.interactions ?? pkg.interactionGraph.interactions
+  const prdContext = input.prdContext !== undefined ? (input.prdContext ?? undefined) : pkg.prdContext
 
-  // 重新生成 unresolvedQuestions(低置信度且无目标的关系)
-  const unresolvedQuestions = generateUnresolvedQuestions(updatedInteractions, pkg.pageList.pages)
+  // 2. 完整重建 pageGraph(P0-7:不再只更新 pageGroups)
+  const newPageGraph = rebuildPageGraph(pages, interactions)
 
-  // 更新 interactionGraph
+  // 3. 重算 interactionGraph counts
+  const totalInteractions = interactions.length
+  const highConfidenceCount = interactions.filter(i => i.confidence >= 0.85).length
+  const mediumConfidenceCount = interactions.filter(i => i.confidence >= 0.6 && i.confidence < 0.85).length
+  const lowConfidenceCount = interactions.filter(i => i.confidence < 0.6).length
+  const userConfirmedCount = interactions.filter(i => i.confirmedByUser).length
+
+  // 4. 重新生成规则层 unresolvedQuestions(低置信度/无目标的关系)
+  const ruleQuestions = generateUnresolvedQuestions(interactions, pages)
+
   const newInteractionGraph = {
     ...pkg.interactionGraph,
-    interactions: updatedInteractions,
+    interactions,
     totalInteractions,
     highConfidenceCount,
     mediumConfidenceCount,
     lowConfidenceCount,
     userConfirmedCount,
-    unresolvedQuestions,
+    unresolvedQuestions: ruleQuestions,
   }
 
-  // 重新计算 pageGraph.pageGroups(挂载关系)
-  // 挂载逻辑:主页面 → overlay/state 的 openModal/showState 关系
-  const pageGroups = pkg.pageGraph.pageGroups.map(group => {
-    const basePage = group.basePage
-    const relatedOverlays = updatedInteractions
-      .filter(i =>
-        i.fromPage === basePage &&
-        (i.actionType === 'openModal' || i.actionType === 'openDrawer') &&
-        i.targetOverlayId
-      )
-      .map(i => i.targetOverlayId!)
-    const relatedStates = updatedInteractions
-      .filter(i =>
-        i.fromPage === basePage &&
-        i.interactionType === 'state' &&
-        i.targetStateId
-      )
-      .map(i => i.targetStateId!)
-    const children = [
-      ...relatedOverlays.map(oid => ({ pageId: oid, relationType: 'overlay' as const })),
-      ...relatedStates.map(sid => ({ pageId: sid, relationType: 'state' as const })),
-    ]
-    return { ...group, children }
-  })
-
-  const newPageGraph = { ...pkg.pageGraph, pageGroups }
-
-  // 更新 collectionStats.interactionsConfirmed
+  // 5. collectionStats
   const newCollectionStats = {
     ...pkg.collectionStats,
     interactionsConfirmed: userConfirmedCount,
   }
 
-  // 构建新数据包(用于质量检查)
+  // 6. 组装待检查的 pkg
   const pkgToCheck: AIContextPackage = {
     ...pkg,
-    interactionGraph: newInteractionGraph,
+    pageList: { pages },
+    prdContext,
     pageGraph: newPageGraph,
+    interactionGraph: newInteractionGraph,
     collectionStats: newCollectionStats,
   }
 
-  // 重新运行质量检查(P0:用户编辑后评分必须更新)
+  // 7. 运行质量检查(S8 后为纯函数,返回的 qualityReport.unresolvedQuestions
+  //    含质量层生成的问题,如 zero-interaction)
   const newQualityReport = runQualityChecks(pkgToCheck)
+
+  // 8. R3-S8:由 recalculate 显式 merge 质量层问题到 interactionGraph.unresolvedQuestions
+  //    (quality-checker 不再直接 push 修改 pkg)
+  const mergedQuestions = mergeUnresolvedQuestions(
+    ruleQuestions,
+    newQualityReport.unresolvedQuestions
+  )
 
   return {
     ...pkgToCheck,
+    interactionGraph: {
+      ...newInteractionGraph,
+      unresolvedQuestions: mergedQuestions,
+    },
     qualityReport: newQualityReport,
   }
+}
+
+/**
+ * 合并规则层 + 质量层的 unresolvedQuestions,按 id 去重。
+ * 规则层优先(用户处理关系时直接操作的就是规则层问题)。
+ */
+function mergeUnresolvedQuestions(
+  ruleQuestions: AIContextPackage['interactionGraph']['unresolvedQuestions'],
+  qualityQuestions: AIContextPackage['qualityReport']['unresolvedQuestions']
+): AIContextPackage['interactionGraph']['unresolvedQuestions'] {
+  const seen = new Set(ruleQuestions.map(q => q.id))
+  const merged = [...ruleQuestions]
+  for (const q of qualityQuestions) {
+    // qualityReport.unresolvedQuestions 结构可能与 interactionGraph 的略不同,做兼容映射
+    const id = (q as any).id || (q as any).question
+    if (!seen.has(id)) {
+      seen.add(id)
+      merged.push({
+        id,
+        question: q.question,
+        relatedPage: (q as any).relatedPage,
+        relatedElement: (q as any).relatedElement,
+        suggestedOptions: q.suggestedOptions || [],
+      })
+    }
+  }
+  return merged
+}
+
+/**
+ * @deprecated R3-S4 起改用 recalculatePackage(pkg, input)。
+ * 保留旧函数名做兼容,内部转发。
+ */
+export function recalculatePackageAfterUserEdit(
+  pkg: AIContextPackage,
+  updatedInteractions: Interaction[]
+): AIContextPackage {
+  return recalculatePackage(pkg, { interactions: updatedInteractions })
 }
