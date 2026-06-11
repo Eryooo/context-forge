@@ -22,7 +22,7 @@ import { AISettingsPanel } from './components/AISettingsPanel'
 import { PageReviewPanel } from './components/PageReviewPanel'
 import { recalculatePackage } from '@modules/package/recalculate'
 
-// 7-Step 流程(审计 P0(UX) / 10.2)
+// 流程阶段(8 个,审计 P0(UX) / 10.2)
 type Step = 'config' | 'identifying' | 'page-review' | 'flow-confirm' | 'prd' | 'ai-settings' | 'quality' | 'export'
 
 function App() {
@@ -204,7 +204,7 @@ function App() {
     setPkg(recalculated)
   }, [pkg])
 
-  // ========== 7-Step 导航 ==========
+  // ========== 流程导航(8 阶段)==========
   const steps: Array<{ key: Step; label: string }> = [
     { key: 'config', label: '配置项目' },
     { key: 'identifying', label: '识别中...' },

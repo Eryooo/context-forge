@@ -395,3 +395,39 @@ EXPORT_CURRENT_PACKAGE 直接序列化用户当前 pkg(经 sanitize + applyRawPR
 
 按 R3 规划「4. R3 后再做」:AI 增强真正接入、Claude Code 专用文件包、ZIP 导出、
 历史记录、分包、Figma 适配、设计变更 diff、稳定 diff(contentHash)、单测覆盖。
+
+---
+
+# R3.1 验收补丁(基于 main@671817c)
+
+不新增功能,只修 6 个验收问题。
+
+| # | 问题 | 修复 |
+|---|---|---|
+| 1 | excluded 页面仍可能进导出 | stripExcludedPages:在 JSON/Prompt/Markdown 三导出函数生效,剔除 excluded 页面 + 其 assets + 来源/目标含 excluded 的 interactions,并重算 interactionGraph 统计 |
+| 2 | 旧 EXPORT→quickExport 是默认路径 | 标记 dev-only,加 console.warn 守卫;正式 UI 只走 EXPORT_CURRENT_PACKAGE(导出用户确认后的 pkg) |
+| 3 | "无需处理"后问题反复出现 | InteractionGraph 加 dismissedQuestionIds;quality-checker 生成 zero_interactions/q_zero_inter 前检查 dismissed;recalculate 维护该集合并过滤 merged 问题;UnresolvedQuestionResolver→FlowConfirm→App 透传 onDismissQuestion |
+| 4 | PageReviewPanel localPages 脱节 | useEffect 同步 props.pages,父 pkg 重算后 localPages 跟进 |
+| 5 | 文档不一致 | 7-Step 全部改为"8 阶段"(实际 config/identifying/page-review/flow-confirm/prd/ai-settings/quality/export);USER-GUIDE 去除 R2"一键生成"残留;Figma=roadmap、不生成 HTML/React/Vue、命名/路径已在 S15 修正复核 |
+| 6 | 窗口过小 | showUI 520×720 → 960×760 |
+
+## 验收对照
+
+- ✅ 排除页面后,导出 JSON 和 Prompt 都不出现该页面(stripExcludedPages)
+- ✅ 排除页面相关 interaction 被移除(refsExcluded 过滤)
+- ✅ 点"无需处理"后相同 unresolved question 不再反复出现(dismissedQuestionIds)
+- ✅ 旧 EXPORT 不再被正式 UI 使用(仅 dev,带 warn)
+- ✅ README 不再误导 Figma / React / Vue / 错误路径
+- ✅ npm run typecheck 通过;npm run build 通过
+
+## 新增/修改文件
+
+- src/modules/export/sanitize.ts(stripExcludedPages)
+- src/modules/exporter.ts(三处调用)
+- src/modules/quality-checker.ts(dismissed 守卫)
+- src/modules/package/recalculate.ts(dismissedQuestionIds 维护 + RecalculateInput.dismissQuestionId)
+- src/schema/interaction.ts(InteractionGraph.dismissedQuestionIds)
+- ui/components/{UnresolvedQuestionResolver,FlowConfirm,PageReviewPanel}.tsx
+- ui/App.tsx(handleDismissQuestion + 透传 + 注释/文案)
+- lib/main.ts(EXPORT dev-only 守卫 + 窗口尺寸)
+- README.md / USER-GUIDE.md(8 阶段 + 去 R2 残留)

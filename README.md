@@ -29,7 +29,7 @@
 - **PRD 上下文**:业务规则 / 用户故事 / 验收标准
 - **AI 增强元信息**:provider / model / usages
 
-### 4. 7-Step 流程化 UX
+### 4. 流程化 UX(8 阶段)
 1. **配置项目**:项目名/范围(选中 Frame / 当前页 / 容器内)
 2. **识别中...**:自动识别页面类型 + 推断交互关系
 3. **页面确认**:改类型 / 重命名 / 排除,实时重算
@@ -69,7 +69,7 @@ npm run build
 ### 4. 使用
 1. 在设计稿中选中要导出的 Frame(或切换到"当前页面"模式)
 2. 运行插件,填写项目名/描述
-3. 按 7-Step 流程操作:页面确认 → 流程确认 → PRD 补充 → AI 设置 → 质量预览 → 导出
+3. 按流程操作(8 阶段):配置项目 → 识别中 → 页面确认 → 流程确认 → PRD 补充 → AI 设置 → 质量预览 → 导出
 4. 复制导出的 JSON / Prompt,交给 Claude / GPT / Cursor 等 AI 工具生成代码
 
 ---
@@ -105,7 +105,7 @@ context-forge/
 │   └── lib/
 │       └── main.ts       # 插件主线程入口(MasterGo API 调用)
 ├── ui/                   # 前端 UI(React + Vite)
-│   ├── App.tsx           # 7-Step 流程主界面
+│   ├── App.tsx           # 流程主界面(8 阶段)
 │   ├── components/
 │   │   ├── FlowConfirm.tsx        # 页面流程确认页
 │   │   ├── PRDPanel.tsx           # PRD 补充面板
@@ -250,7 +250,7 @@ context-forge/
 完整改造清单见 [ITERATION-PLAN-R2.md](./ITERATION-PLAN-R2.md)。核心改动:
 - **P0 安全审计**:删 `aiSettings` 字段,改为 `aiEnhancement`,assets 内联真实数据,导出前强制 sanitize
 - **P0(UX) 质量规则**:页面>1 且交互=0 不可高分(blocking -50),截图/HTML 分级
-- **7-Step 流程化 UX**:配置→识别→页面确认→流程确认→PRD→AI设置→质量预览→导出
+- **流程化 UX(8 阶段)**:配置→识别→页面确认→流程确认→PRD→AI设置→质量预览→导出
 - **稳定 ID + source 数组 + target 细分**:hash 生成稳定 ID,source 改数组,target 拆为 targetPageId/targetOverlayId/targetStateId/returnToPageId
 - **类型优先级修复**:state_* > modal/drawer > entry/home/list/detail/form > component > unknown
 - **Prompt 增强**:边界声明 / 待确认问题详情 / 资产说明 3 章节
