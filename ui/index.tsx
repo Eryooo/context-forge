@@ -5,10 +5,13 @@ import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import './App.css'
 import App from './App'
+import { ErrorBoundary } from './ErrorBoundary'
 
 ReactDOM.render(
     <React.StrictMode>
-        <App />
+        <ErrorBoundary>
+            <App />
+        </ErrorBoundary>
     </React.StrictMode>,
     document.getElementById('root')
 )
