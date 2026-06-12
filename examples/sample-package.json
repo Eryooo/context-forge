@@ -1,0 +1,259 @@
+{
+  "meta": {
+    "version": "0.3.1",
+    "generatedAt": "2026-06-11T10:30:00.000Z",
+    "pluginVersion": "0.3.1",
+    "exportMode": "full"
+  },
+  "projectInfo": {
+    "projectName": "待办事项管理 Web 应用",
+    "projectDescription": "一个简洁的待办事项管理工具,支持任务增删改查、状态切换、优先级标记。",
+    "designFileId": "mock-file-id",
+    "designFileName": "TodoApp 设计稿 v2.3"
+  },
+  "pages": [
+    {
+      "pageId": "page-login",
+      "pageName": "登录页",
+      "pageType": "entry",
+      "pageNameNormalized": "login",
+      "isEntryPage": true,
+      "excluded": false,
+      "width": 375,
+      "height": 812,
+      "dsl": "{\n  \"type\": \"Frame\",\n  \"name\": \"登录页\",\n  \"children\": [\n    {\"type\": \"Text\", \"content\": \"待办管理\", \"fontSize\": 32, \"fontWeight\": \"bold\"},\n    {\"type\": \"Input\", \"placeholder\": \"手机号\", \"width\": 335, \"height\": 48},\n    {\"type\": \"Input\", \"placeholder\": \"验证码\", \"width\": 335, \"height\": 48},\n    {\"type\": \"Button\", \"text\": \"登录\", \"width\": 335, \"height\": 48, \"primary\": true}\n  ]\n}",
+      "html": "<div class=\"page-login\" style=\"width:375px;height:812px;\">\n  <h1>待办管理</h1>\n  <input placeholder=\"手机号\" />\n  <input placeholder=\"验证码\" />\n  <button class=\"primary\">登录</button>\n</div>",
+      "screenshotDataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "componentCount": 4,
+      "textContent": "待办管理\n手机号\n验证码\n登录"
+    },
+    {
+      "pageId": "page-list",
+      "pageName": "任务列表",
+      "pageType": "list",
+      "pageNameNormalized": "task-list",
+      "isEntryPage": false,
+      "excluded": false,
+      "width": 375,
+      "height": 812,
+      "dsl": "{\n  \"type\": \"Frame\",\n  \"name\": \"任务列表\",\n  \"children\": [\n    {\"type\": \"Text\", \"content\": \"我的任务\", \"fontSize\": 24},\n    {\"type\": \"Button\", \"text\": \"+ 新建\", \"variant\": \"outline\"},\n    {\"type\": \"List\", \"itemCount\": 5, \"itemTemplate\": \"TaskCard\"}\n  ]\n}",
+      "html": "<div class=\"page-list\">\n  <h2>我的任务</h2>\n  <button class=\"btn-add\">+ 新建</button>\n  <ul class=\"task-list\">\n    <li class=\"task-card\">...</li>\n  </ul>\n</div>",
+      "screenshotDataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "componentCount": 8,
+      "textContent": "我的任务\n+ 新建\n完成前端开发\n编写单元测试\n..."
+    },
+    {
+      "pageId": "page-detail",
+      "pageName": "任务详情",
+      "pageType": "detail",
+      "pageNameNormalized": "task-detail",
+      "isEntryPage": false,
+      "excluded": false,
+      "width": 375,
+      "height": 812,
+      "dsl": "{\n  \"type\": \"Frame\",\n  \"name\": \"任务详情\",\n  \"children\": [\n    {\"type\": \"Button\", \"icon\": \"back\"},\n    {\"type\": \"Text\", \"content\": \"任务标题\", \"fontSize\": 20, \"editable\": true},\n    {\"type\": \"Text\", \"content\": \"描述\", \"fontSize\": 14},\n    {\"type\": \"Button\", \"text\": \"标记完成\"},\n    {\"type\": \"Button\", \"text\": \"删除\", \"variant\": \"danger\"}\n  ]\n}",
+      "html": "<div class=\"page-detail\">\n  <button class=\"btn-back\">←</button>\n  <input class=\"title\" value=\"任务标题\" />\n  <p class=\"description\">描述内容...</p>\n  <button class=\"btn-complete\">标记完成</button>\n  <button class=\"btn-delete\">删除</button>\n</div>",
+      "screenshotDataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "componentCount": 5,
+      "textContent": "任务标题\n描述\n标记完成\n删除"
+    },
+    {
+      "pageId": "modal-add",
+      "pageName": "新增任务弹窗",
+      "pageType": "modal",
+      "pageNameNormalized": "modal-add-task",
+      "isEntryPage": false,
+      "excluded": false,
+      "width": 335,
+      "height": 400,
+      "dsl": "{\n  \"type\": \"Modal\",\n  \"name\": \"新增任务弹窗\",\n  \"children\": [\n    {\"type\": \"Text\", \"content\": \"新建任务\", \"fontSize\": 18},\n    {\"type\": \"Input\", \"placeholder\": \"任务标题\"},\n    {\"type\": \"TextArea\", \"placeholder\": \"任务描述\"},\n    {\"type\": \"Button\", \"text\": \"取消\"},\n    {\"type\": \"Button\", \"text\": \"保存\", \"primary\": true}\n  ]\n}",
+      "html": "<div class=\"modal-add\">\n  <h3>新建任务</h3>\n  <input placeholder=\"任务标题\" />\n  <textarea placeholder=\"任务描述\"></textarea>\n  <button class=\"btn-cancel\">取消</button>\n  <button class=\"btn-save\">保存</button>\n</div>",
+      "screenshotDataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "componentCount": 5,
+      "textContent": "新建任务\n任务标题\n任务描述\n取消\n保存"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "rel-login-to-list",
+      "fromPageId": "page-login",
+      "triggerElement": "登录按钮",
+      "triggerElementType": "button",
+      "actionType": "navigate",
+      "targetPageId": "page-list",
+      "confidence": "high",
+      "source": ["naming", "prototype"],
+      "reasoning": "登录按钮触发跳转到主列表页"
+    },
+    {
+      "id": "rel-list-open-add",
+      "fromPageId": "page-list",
+      "triggerElement": "+ 新建按钮",
+      "triggerElementType": "button",
+      "actionType": "openModal",
+      "targetOverlayId": "modal-add",
+      "confidence": "high",
+      "source": ["naming", "layout"],
+      "reasoning": "新建按钮打开新增弹窗"
+    },
+    {
+      "id": "rel-add-cancel",
+      "fromPageId": "modal-add",
+      "triggerElement": "取消按钮",
+      "triggerElementType": "button",
+      "actionType": "closeModal",
+      "returnToPageId": "page-list",
+      "confidence": "high",
+      "source": ["naming"],
+      "reasoning": "取消按钮关闭弹窗返回列表"
+    },
+    {
+      "id": "rel-add-save",
+      "fromPageId": "modal-add",
+      "triggerElement": "保存按钮",
+      "triggerElementType": "button",
+      "actionType": "submitForm",
+      "targetPageId": "page-list",
+      "successStateId": null,
+      "failureStateId": null,
+      "confidence": "high",
+      "source": ["naming", "user"],
+      "reasoning": "保存按钮提交表单后返回列表"
+    },
+    {
+      "id": "rel-list-to-detail",
+      "fromPageId": "page-list",
+      "triggerElement": "任务卡片",
+      "triggerElementType": "interactive",
+      "actionType": "navigate",
+      "targetPageId": "page-detail",
+      "confidence": "medium",
+      "source": ["layout"],
+      "reasoning": "点击列表项查看详情"
+    },
+    {
+      "id": "rel-detail-back",
+      "fromPageId": "page-detail",
+      "triggerElement": "返回按钮",
+      "triggerElementType": "button",
+      "actionType": "goBack",
+      "returnToPageId": "page-list",
+      "confidence": "high",
+      "source": ["naming", "prototype"],
+      "reasoning": "返回按钮回到列表"
+    }
+  ],
+  "interactionGraph": {
+    "entryPageId": "page-login",
+    "mainFlow": ["page-login", "page-list", "page-detail"],
+    "overlayAttachments": {
+      "page-list": ["modal-add"]
+    }
+  },
+  "prdContext": {
+    "businessRules": [
+      "用户需先登录才能访问待办列表",
+      "任务状态包含:待办、进行中、已完成",
+      "删除任务需二次确认"
+    ],
+    "userStories": [
+      "作为用户,我希望能快速新建任务,以便记录临时想法",
+      "作为用户,我希望能标记任务优先级,以便聚焦重要事项"
+    ],
+    "acceptanceCriteria": [
+      "登录成功后跳转列表页,失败显示错误提示",
+      "新建任务表单:标题必填,描述选填",
+      "列表支持按状态筛选"
+    ]
+  },
+  "assets": {
+    "dslCount": 4,
+    "htmlCount": 4,
+    "screenshotCount": 4,
+    "volumeEstimate": {
+      "dslBytes": 2048,
+      "htmlBytes": 1536,
+      "screenshotBase64Bytes": 512000,
+      "totalBytes": 515584
+    }
+  },
+  "qualityReport": {
+    "score": 82,
+    "level": "good",
+    "checks": [
+      {
+        "id": "data_completeness",
+        "category": "数据完整度",
+        "score": 90,
+        "weight": 25,
+        "passed": true,
+        "message": "4 页全部有 DSL/HTML/截图"
+      },
+      {
+        "id": "page_confirmation",
+        "category": "页面确认度",
+        "score": 100,
+        "weight": 20,
+        "passed": true,
+        "message": "所有页面类型已确认,无排除页面"
+      },
+      {
+        "id": "interaction_completeness",
+        "category": "交互完整度",
+        "score": 75,
+        "weight": 25,
+        "passed": true,
+        "message": "主流程完整,6 个关系已确认"
+      },
+      {
+        "id": "prd_completeness",
+        "category": "PRD 完整度",
+        "score": 70,
+        "weight": 15,
+        "passed": true,
+        "message": "业务规则 3 条,用户故事 2 条,验收标准 3 条"
+      },
+      {
+        "id": "export_readiness",
+        "category": "导出可用性",
+        "score": 80,
+        "weight": 15,
+        "passed": true,
+        "message": "无阻断性问题,可直接导出"
+      }
+    ],
+    "blockers": [],
+    "warnings": [
+      "建议补充更多 PRD 细节(如异常流程、权限规则)"
+    ]
+  },
+  "aiEnhancement": {
+    "usedForPageRecognition": false,
+    "usedForRelationInference": false,
+    "usedForPRDSummary": false,
+    "provider": null,
+    "model": null,
+    "totalTokens": 0
+  },
+  "collectionStats": {
+    "totalPages": 4,
+    "pagesByType": {
+      "entry": 1,
+      "list": 1,
+      "detail": 1,
+      "modal": 1
+    },
+    "totalInteractions": 6,
+    "interactionsByConfidence": {
+      "high": 5,
+      "medium": 1,
+      "low": 0
+    },
+    "collectionDuration": 1850
+  },
+  "aiExecutionInstruction": {
+    "targetTool": "claude-code",
+    "workflow": "这是一个「待办事项管理 Web 应用」的完整设计上下文数据包。请基于以上页面 DSL、交互关系、PRD 上下文,生成符合该设计的前端项目(React / Vue / 原生 HTML 均可)。注意处理主流程(登录 → 列表 → 详情)和弹窗交互(新建任务)。",
+    "suggestedPrompt": "请基于上述设计上下文,生成一个「待办事项管理 Web 应用」的前端项目。要求:\n1. 实现 4 个页面:登录页、任务列表、详情页、新增弹窗\n2. 实现 6 个交互关系(登录跳转、新建弹窗、保存/取消、列表点击、返回)\n3. UI 还原设计稿的布局和组件(参考 DSL / HTML)\n4. 满足 PRD 的业务规则和验收标准\n5. 技术栈:React + TypeScript + Tailwind CSS"
+  }
+}

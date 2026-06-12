@@ -1,14 +1,79 @@
 # ContextForge — MasterGo 设计上下文数据包生成器
 
+<!-- 徽章行 -->
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+![Version](https://img.shields.io/badge/version-0.3.1-orange)
+
+<!-- Logo 占位区 -->
+<!-- TODO: 加项目 logo 横幅图 -->
+
 **ContextForge** 是一个 MasterGo 插件,从设计稿中提取完整上下文(页面结构 + 交互关系 + 业务规则 + 质量报告),生成标准化数据包,供外部 AI 工具(Claude Code / Codex / Cursor / ChatGPT 等)生成可交互 HTML Demo / React Demo / Vue Demo。
 
 > **边界**:本插件只负责读取、识别、推断、确认、打包、导出设计上下文数据,**不生成 HTML / React / Vue,不运行原型**。代码生成由外部 AI 工具基于导出的数据包完成。
 >
 > **平台**:当前为 MasterGo 插件。Figma 适配为 future roadmap,尚未支持。
 
+📖 **[English README](./README.en.md)** · 中文文档(当前)
+
 ---
 
-## 核心特性
+## 目录
+
+- [🎯 为什么需要 ContextForge?](#-为什么需要-contextforge)
+- [📊 ContextForge vs 其他方案](#-contextforge-vs-其他方案)
+- [✨ 核心特性](#-核心特性)
+- [🚀 安装与使用](#-安装与使用)
+- [🏗️ 架构](#️-架构)
+- [📦 数据包 Schema](#-数据包-schema)
+- [🔒 安全保障](#-安全保障)
+- [🗺️ Roadmap](#️-roadmap)
+- [❓ 常见问题](#-常见问题)
+- [🛠️ 技术栈](#️-技术栈)
+- [🧰 开发与调试](#-开发与调试)
+- [🤝 贡献](#-贡献)
+
+---
+
+## 🎯 为什么需要 ContextForge?
+
+**痛点**:设计师 / 产品经理和 AI 工具协作时,需要手动:
+- 📸 逐个截图每个页面 / 弹窗 / 状态页
+- 📝 手写页面间的跳转关系("点登录按钮跳到列表页...")
+- 📋 复制粘贴 PRD、业务规则、验收标准
+- 🎨 描述设计规范(颜色 / 字号 / 间距)
+- 🔄 每次设计改动后重复以上所有步骤
+
+**结果**:Prompt 长、易遗漏、难维护,AI 生成的代码和设计脱节。
+
+**ContextForge 的解决方案**:
+- ✅ **一键提取**:自动识别 14 种页面类型、推断交互关系、采集 DSL/HTML/截图
+- ✅ **结构化输出**:标准 JSON Schema,AI 工具可程序化解析
+- ✅ **质量保障**:18 项检查 + 评分,导出前确保数据完整
+- ✅ **可编辑确认**:8 阶段流程化 UI,用户可改页面类型 / 补充关系 / 排除页面
+- ✅ **增量更新**:设计改动后重新生成,AI 能 diff 出变化部分
+
+---
+
+## 📊 ContextForge vs 其他方案
+
+| 对比维度 | **手动截图+描述** | **MCP 直连设计工具** | **ContextForge** |
+|---------|------------------|---------------------|-----------------|
+| **页面结构** | ❌ 手动描述,易遗漏 | ⚠️ 实时读但无类型识别 | ✅ 自动识别 14 种类型 |
+| **交互关系** | ❌ 全靠手写 | ❌ 无推断 | ✅ 3 种推断 + 用户确认 |
+| **截图资产** | ⚠️ 手动逐个截 | ❌ 需额外脚本 | ✅ 自动采集 base64 |
+| **PRD 上下文** | ⚠️ 手动粘贴 | ❌ 无 | ✅ 结构化字段 + 草稿 |
+| **质量检查** | ❌ 无 | ❌ 无 | ✅ 18 项检查 + 评分 |
+| **可编辑确认** | ❌ 改需重头来 | ❌ 实时但难追踪 | ✅ 8 阶段 UI + 重算 |
+| **导出格式** | ⚠️ 纯文本 Prompt | ⚠️ 原始 API JSON | ✅ JSON / Prompt / Markdown |
+| **离线使用** | ✅ | ❌ 需 MCP 服务端 | ✅ 插件内完成 |
+
+**定位**:ContextForge 是 MCP 的**静态快照**版——在设计定稿后生成一次完整数据包,供 AI 工具离线使用。适合"设计 → 评审 → 交付 AI 生成代码"的流程。
+
+---
+
+## ✨ 核心特性
 
 ### 1. 多维度页面识别(14 种类型)
 - **主页面**: entry / home / list / detail / form
@@ -46,7 +111,7 @@
 
 ---
 
-## 安装与使用
+## 🚀 安装与使用
 
 ### 1. 克隆仓库
 ```bash
@@ -74,7 +139,58 @@ npm run build
 
 ---
 
-## 架构
+## 🏗️ 架构
+
+### 数据流
+
+```mermaid
+flowchart LR
+    A[MasterGo 设计稿] -->|选区/页面| B[采集 Collector]
+    B -->|DSL/HTML/截图/reactions| C[识别 Identifier]
+    C -->|14 种页面类型| D[推断 Inference]
+    D -->|交互关系候选| E[用户确认 8 阶段 UI]
+    E -->|编辑/排除/补充| F[重算 Recalculate]
+    F -->|质量检查| G[质量报告]
+    G -->|脱敏 Sanitize| H[导出 Exporter]
+    H --> I[JSON]
+    H --> J[Prompt]
+    H --> K[Markdown]
+    I & J & K -->|外部 AI 工具| L[Claude Code / Cursor / ChatGPT]
+    L --> M[生成代码]
+```
+
+### 8 阶段流程
+
+```mermaid
+stateDiagram-v2
+    [*] --> 配置项目
+    配置项目 --> 识别中: 选区/范围
+    识别中 --> 页面确认: 自动识别
+    页面确认 --> 流程确认: 改类型/排除/入口页
+    流程确认 --> PRD补充: 确认/补充关系
+    PRD补充 --> AI设置: 业务规则(可选)
+    AI设置 --> 质量预览: API配置(可选)
+    质量预览 --> 导出: 无阻断问题
+    导出 --> [*]: JSON/Prompt/Markdown
+
+    页面确认 --> 页面确认: 实时重算
+    流程确认 --> 流程确认: 处理待确认问题
+```
+
+### 安全脱敏链路
+
+```mermaid
+flowchart TD
+    A[AIContextPackage] -->|导出请求| B{sanitizePackageForExport}
+    B -->|redactSensitive| C[剥离 apiKey/token/secret]
+    C --> D{applyRawPRDPolicy}
+    D -->|未勾选 includeRawPRD| E[移除 rawPRD]
+    E --> F{stripExcludedPages}
+    F -->|excluded=true| G[移除排除页面+关系]
+    G --> H[安全导出产物]
+```
+
+### 目录结构
 
 ```
 context-forge/
@@ -126,7 +242,7 @@ context-forge/
 
 ---
 
-## 数据包 Schema
+## 📦 数据包 Schema
 
 导出的 JSON 数据包结构:
 
@@ -224,7 +340,7 @@ context-forge/
 
 ---
 
-## 安全保障
+## 🔒 安全保障
 
 ### 1. API Key 不进数据包
 - `aiSettings.apiKey` **从不**进入数据包(`AIContextPackage.aiEnhancement` 仅含 provider/model/usages)
@@ -244,29 +360,41 @@ context-forge/
 
 ---
 
-## 迭代记录
+## 🗺️ Roadmap
 
-### R2(2025-01):安全 + 质量 + 流程化(15 步改造)
-完整改造清单见 [ITERATION-PLAN-R2.md](./ITERATION-PLAN-R2.md)。核心改动:
-- **P0 安全审计**:删 `aiSettings` 字段,改为 `aiEnhancement`,assets 内联真实数据,导出前强制 sanitize
-- **P0(UX) 质量规则**:页面>1 且交互=0 不可高分(blocking -50),截图/HTML 分级
-- **流程化 UX(8 阶段)**:配置→识别→页面确认→流程确认→PRD→AI设置→质量预览→导出
-- **稳定 ID + source 数组 + target 细分**:hash 生成稳定 ID,source 改数组,target 拆为 targetPageId/targetOverlayId/targetStateId/returnToPageId
-- **类型优先级修复**:state_* > modal/drawer > entry/home/list/detail/form > component > unknown
-- **Prompt 增强**:边界声明 / 待确认问题详情 / 资产说明 3 章节
-- **DevMode probe**:测试 mg.codegen.getDSL/getCode 可用性
-- **深层扫描模块**:maxDepth6 / maxNodes1000 递归扫描关键元素
+**已完成**(v0.3.1):
+- ✅ 14 种页面类型识别 + 3 种关系推断
+- ✅ 8 阶段流程化 UI + 用户编辑确认
+- ✅ 18 项质量检查 + 分项评分
+- ✅ JSON / Prompt / Markdown 导出
+- ✅ 安全脱敏(API Key 不进数据包)
+- ✅ 入口页 / 排除页面 / 待确认问题处理
 
-### R1(2024-12):MVP 基础功能
-- 页面类型识别(14 种)
-- 交互关系推断(命名规则+原型连线)
-- DSL/HTML/截图采集(三层降级)
-- 质量检查(18 种检查项)
-- 导出 JSON/Prompt/Markdown
+**计划中**:
+- ⏳ AI 增强真正接入(页面语义 / 关系推断 / PRD 摘要)
+- ⏳ Claude Code 专用文件包(.claude 目录结构)
+- ⏳ ZIP 数据包导出(资产分离)
+- ⏳ 历史记录与版本管理
+- ⏳ 设计变更 diff(增量更新)
+- ⏳ Figma 平台适配
+- ⏳ 单元测试覆盖
+
+完整变更历史见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ---
 
-## 审计清单
+## 📝 迭代记录
+
+完整迭代历史与版本变更见 **[CHANGELOG.md](./CHANGELOG.md)**。
+
+- **R3.1**(v0.3.1):验收补丁 — excluded 全链路移除、导出防丢编辑、CSS 修复、ErrorBoundary
+- **R3**(v0.3.0):MVP 闭环 — 导出当前包、手动新增/编辑关系、入口页/排除、分项评分
+- **R2**(v0.2.0):安全 + 质量 + 流程化 — API Key 不进包、18 项质量检查、8 阶段 UI
+- **R1**(v0.1.0):MVP 基础 — 14 种页面识别、关系推断、三层降级采集、三格式导出
+
+---
+
+## ✅ 审计清单
 
 完整审计清单及修复状态见项目根目录 **AUDIT-16Q-CHECKLIST.md**(16 问审计,每问覆盖 1–5 个代码位置)。
 
@@ -279,7 +407,7 @@ context-forge/
 
 ---
 
-## 常见问题
+## ❓ 常见问题
 
 ### 1. 为什么截图 / DSL / HTML 缺失?
 - **截图缺失**:节点过大(>10000px)或导出失败 → 重新选中较小范围
@@ -307,7 +435,7 @@ context-forge/
 
 ---
 
-## 技术栈
+## 🛠️ 技术栈
 
 - **插件框架**:MasterGo Plugin API
 - **前端**:React + Vite + TypeScript
@@ -317,7 +445,7 @@ context-forge/
 
 ---
 
-## 开发与调试
+## 🧰 开发与调试
 
 ### 1. 开发模式
 ```bash
@@ -336,13 +464,13 @@ npm run typecheck
 
 ---
 
-## License
+## 📄 License
 
 MIT
 
 ---
 
-## 贡献
+## 🤝 贡献
 
 欢迎提 Issue / PR。审计清单和迭代计划在项目根目录,修复请对应审计项编号。
 
