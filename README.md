@@ -466,13 +466,18 @@ npm run typecheck
 
 ## 📄 License
 
-MIT
+本项目采用 [MIT License](./LICENSE)。
 
 ---
 
 ## 🤝 贡献
 
-欢迎提 Issue / PR。审计清单和迭代计划在项目根目录,修复请对应审计项编号。
+欢迎贡献!请先阅读:
+- [贡献指南 CONTRIBUTING.md](./CONTRIBUTING.md) — 开发环境、代码规范、PR 流程
+- [行为准则 CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+- [安全策略 SECURITY.md](./SECURITY.md) — 漏洞报告与安全设计
+
+提 Issue 可用 [Bug 报告](./.github/ISSUE_TEMPLATE/bug_report.md) / [功能建议](./.github/ISSUE_TEMPLATE/feature_request.md) 模板。审计清单和迭代计划在项目根目录,修复请对应审计项编号。
 
 ---
 

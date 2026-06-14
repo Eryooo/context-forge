@@ -1,6 +1,31 @@
 {
   "name": "context-forge",
-  "version": "0.3.0",
+  "version": "0.3.1",
+  "description": "MasterGo 插件:从设计稿提取完整上下文(页面结构+交互关系+业务规则+质量报告),生成标准化数据包供 AI 工具(Claude Code/Cursor/ChatGPT)生成代码。A MasterGo plugin that extracts design context into a standardized package for AI code generation.",
+  "keywords": [
+    "mastergo",
+    "mastergo-plugin",
+    "design-to-code",
+    "figma-plugin",
+    "ai",
+    "claude",
+    "claude-code",
+    "cursor",
+    "chatgpt",
+    "design-context",
+    "d2c",
+    "prompt-engineering"
+  ],
+  "homepage": "https://github.com/Eryooo/context-forge#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Eryooo/context-forge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Eryooo/context-forge/issues"
+  },
+  "author": "Eryooo",
+  "license": "MIT",
   "scripts": {
     "dev": "yarn dev:ui & yarn dev:main",
     "dev:ui": "cross-env TARGET=ui NODE_ENV=development vite build --mode development -w",
