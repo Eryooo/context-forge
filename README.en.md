@@ -1,6 +1,8 @@
 # ContextForge — Design Context Package Generator for MasterGo
 
 <!-- Badges -->
+[![GitHub stars](https://img.shields.io/github/stars/Eryooo/context-forge?style=social)](https://github.com/Eryooo/context-forge/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/Eryooo/context-forge?style=social)](https://github.com/Eryooo/context-forge/network/members)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
