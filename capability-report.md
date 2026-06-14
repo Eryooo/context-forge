@@ -1,6 +1,6 @@
 # MasterGo 插件 API 能力探测报告 (Capability Report)
 
-> **项目**:MasterGo AI Context Packager
+> **项目**:ContextForge
 > **阶段**:Step 1 — API 能力探测 Spike
 > **日期**:2026-06-09
 > **结论可信度分级**:

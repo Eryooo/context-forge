@@ -56,6 +56,26 @@
 
 ---
 
+## ⚡ Quick Start
+
+```bash
+# 1. 克隆并构建
+git clone https://github.com/Eryooo/context-forge.git
+cd context-forge
+npm install
+npm run build  # 若装了 yarn 用 npm run build,否则用 npm run build:ui && npm run build:main
+
+# 2. 在 MasterGo 中加载
+# 插件 → 开发 → 导入插件 → 选择 dist/manifest.json
+
+# 3. 使用
+# 在 MasterGo 中选择 Frame 或范围 → 运行插件 → 8 阶段流程 → 导出数据包
+```
+
+📖 详细文档见 [安装与使用](#-安装与使用) / [English Quick Start](./README.en.md#-installation--usage)
+
+---
+
 ## 📊 ContextForge vs 其他方案
 
 | 对比维度 | **手动截图+描述** | **MCP 直连设计工具** | **ContextForge** |

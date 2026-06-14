@@ -52,6 +52,26 @@
 
 ---
 
+## ⚡ Quick Start
+
+```bash
+# 1. Clone and build
+git clone https://github.com/Eryooo/context-forge.git
+cd context-forge
+npm install
+npm run build  # or: npm run build:ui && npm run build:main
+
+# 2. Load in MasterGo
+# Plugins → Development → Import plugin → select dist/manifest.json
+
+# 3. Use
+# In MasterGo: select Frame or scope → run plugin → 8-stage flow → export package
+```
+
+📖 See [Installation & Usage](#-installation--usage) for details / [中文快速开始](./README.md#-quick-start)
+
+---
+
 ## 📊 ContextForge vs Alternatives
 
 | Dimension | **Manual screenshot + describe** | **MCP direct connection** | **ContextForge** |

@@ -1,4 +1,4 @@
-# MasterGo AI Context Packager — 全方位质量指标体系
+# ContextForge — 全方位质量指标体系
 
 > **用途**: 作为开发、自审、迭代的唯一基准。每完成一个 Step 回来对照此表自检,
 > 所有"可自证"项必须绿;所有"需 MasterGo 验证"项记录验证步骤供用户回来快速点。
